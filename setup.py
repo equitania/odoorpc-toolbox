@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="odoorpc-toolbox",
-    version="0.0.1",
+    version="0.0.2",
     author="Equitania Software GmbH",
     author_email="info@equitania.de",
     description="Helper Functions for OdooRPC.",

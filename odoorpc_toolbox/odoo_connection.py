@@ -5,6 +5,7 @@
 import odoorpc
 import yaml
 import urllib
+import sys
 
 class OdooConnection:
     def __init__(self,eq_yaml_path):
@@ -22,8 +23,7 @@ class OdooConnection:
             # Build connection
             self.odoo = self.odoo_connect()
         except urllib.error.URLError as ex:
-            raise exceptions.OdooConnectionError(
-                "ERROR: Please check your parameters and your connection" + " " + str(ex))
+            print("ERROR: Please check your parameters and your connection" + " " + str(ex))
             sys.exit(0)
 
 
