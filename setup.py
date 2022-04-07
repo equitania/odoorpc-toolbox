@@ -11,7 +11,7 @@ setuptools.setup(
     description="Helper Functions for OdooRPC.",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://gitlab.ownerp.io/pypi-projects/odoorpc-toolbox",
+    url="https://github.com/equitania/odoorpc-toolbox",
     packages=['odoorpc_toolbox'],
     classifiers=[
         "Programming Language :: Python :: 3",
