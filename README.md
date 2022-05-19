@@ -8,7 +8,7 @@ This is a simple python library that extends the functionality of Odoo RPC and c
 
 - Python (>= 3.6)
 - OdooRPC (>= 0.8.0)
-- PyYaml (>= 3.12)
+- PyYaml (>= 6.0)
 
 Use the package manager [pip](https://pip.pypa.io/en/stable/) to install odoorpc-toolbox.
 
