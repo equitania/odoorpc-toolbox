@@ -6,9 +6,9 @@ This is a simple python library that extends the functionality of Odoo RPC and c
 
 ### odoo-fast-report-mapper requires:
 
-- Python (>= 3.6)
-- OdooRPC (>= 0.8.0)
-- PyYaml (>= 6.0)
+- Python (>= 3.8)
+- OdooRPC (>= 0.9.0)
+- PyYaml (>= 5.4.1)
 
 Use the package manager [pip](https://pip.pypa.io/en/stable/) to install odoorpc-toolbox.
 

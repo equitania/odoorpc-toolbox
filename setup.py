@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="odoorpc-toolbox",
-    version="0.0.5",
+    version="0.0.6",
     author="Equitania Software GmbH",
     author_email="info@equitania.de",
     description="Helper Functions for OdooRPC.",
@@ -23,6 +23,6 @@ setuptools.setup(
     ''',
     install_requires=[
         'OdooRPC>=0.9.0',
-        'PyYaml>=5.3.1'
+        'PyYaml>=5.4.1'
     ]
 )
