@@ -1,182 +1,212 @@
-# -*- coding: utf-8 -*-
-# Copyright 2014-now Equitania Software GmbH - Pforzheim - Germany
-# License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
+"""Helper functions for OdooRPC operations.
+
+This module extends the base OdooConnection class with helper functions for
+common Odoo operations like partner management, state/country lookups, and
+file operations.
+
+Typical usage example:
+    connection = EqOdooConnection('config.yaml')
+    state_id = connection.get_state_id(country_id, state_name)
+"""
 
 import os
 import base64
+from typing import Optional, List, Union
 from . import odoo_connection
 
 
 class EqOdooConnection(odoo_connection.OdooConnection):
+    """Extended Odoo connection class with helper functions.
+    
+    This class inherits from OdooConnection and adds various helper methods
+    for common Odoo operations.
+    """
 
-    def get_state_id(self,_country_id,_state_name):
-        """
-        Return the state_id (Bundesland)
-        :param _country_id: ID des Landes
-        :param _state_name: Name des Bundeslandes/Kanton
-        :return:
+    def get_state_id(self, country_id: int, state_name: str) -> Optional[int]:
+        """Returns the state ID (Bundesland) for a given country and state name.
+
+        Args:
+            country_id: The ID of the country in Odoo.
+            state_name: The name of the state/province/bundesland.
+
+        Returns:
+            The ID of the state if found, None otherwise.
         """
         RES_COUNTRY_STATE = self.odoo.env['res.country.state']
-        _state_id = RES_COUNTRY_STATE.search([('name', '=', _state_name), ('country_id', '=', _country_id)])
-        if len(_state_id) != 0:
-            _get_state_id = _state_id[0]
-        else:
-            _get_state_id = None
+        state_id = RES_COUNTRY_STATE.search([
+            ('name', '=', state_name),
+            ('country_id', '=', country_id)
+        ])
+        return state_id[0] if state_id else None
 
-        return _get_state_id
+    def get_res_partner_id(
+        self,
+        supplierno: Optional[str] = None,
+        customerno: Optional[str] = None
+    ) -> List[int]:
+        """Retrieves partner IDs based on supplier or customer numbers.
 
-    def get_res_partner_id(self,_supplierno, _customerno):
-        """
-        res.partner id ermitteln
-        :param _supplierno: Lieferantennummer
-        :param _customerno: Kundennummer
-        :return:
+        Args:
+            supplierno: Optional supplier number to search for.
+            customerno: Optional customer number to search for.
+
+        Returns:
+            List of matching partner IDs.
         """
         RES_PARTNER = self.odoo.env['res.partner']
-        if _supplierno == None and _customerno != None:
-            _partner_id = RES_PARTNER.search([('customer_number', '=', _customerno)])
-        elif _supplierno != None and _customerno == None:
-            _partner_id = RES_PARTNER.search([('supplier_number', '=', _supplierno)])
-        elif _supplierno != None and _customerno != None:
-            _partner_id = RES_PARTNER.search([('supplier_number', '=', _supplierno), ('customer_number', '=', _customerno)])
+        domain = []
+        
+        if supplierno:
+            domain.append(('supplier_number', '=', supplierno))
+        if customerno:
+            domain.append(('customer_number', '=', customerno))
+            
+        return RES_PARTNER.search(domain)
 
-        return _partner_id
+    def get_res_partner_category_id(self, category_name: str) -> int:
+        """Gets or creates a partner category (tag).
 
-    def get_res_partner_category_id(self,_category_name):
-        """
-        Kategorie / Schlagwörter Kontakte setzen, wenn nicht vorhanden, wird die Kategorie angelegt
-        :param _category_name: Name der Kategorie
-        :return:
+        If the category doesn't exist, it will be created.
+
+        Args:
+            category_name: Name of the category/tag.
+
+        Returns:
+            ID of the existing or newly created category.
         """
         RES_PARTNER_CATEGORY = self.odoo.env['res.partner.category']
-        _category_id = RES_PARTNER_CATEGORY.search([('name', '=', _category_name)])
-        if len(_category_id) == 0:
-            _category_data = {}
-            _category_data['name'] = _category_name
-            _category_id = [RES_PARTNER_CATEGORY.create(_category_data)]
+        category_id = RES_PARTNER_CATEGORY.search([('name', '=', category_name)])
+        if not category_id:
+            category_data = {'name': category_name}
+            category_id = RES_PARTNER_CATEGORY.create(category_data)
+        return category_id
 
-        return _category_id
+    def get_ir_sequence_number_next_actual(self, code: str) -> Optional[int]:
+        """Returns the next actual number in the sequence.
 
-    def get_ir_sequence_number_next_actual(self,_code):
-        """
-        Ermittelt die nächste Nummer im Zähler von ir.sequence
-        :param _code: Bezeichner der Sequenz
-        :return:
+        Args:
+            code: The code of the sequence.
+
+        Returns:
+            The next actual number in the sequence if found, None otherwise.
         """
         IR_SEQUENCE = self.odoo.env['ir.sequence']
-        _sequence_id = IR_SEQUENCE.search([('code', '=', _code)])
-        if len(_sequence_id) != 0:
-            _ir_sequence = IR_SEQUENCE.browse(_sequence_id)
-            _number_next_actual = _ir_sequence["number_next_actual"]
-        else:
-            _number_next_actual = None
+        sequence_id = IR_SEQUENCE.search([('code', '=', code)])
+        if sequence_id:
+            sequence = IR_SEQUENCE.browse(sequence_id)
+            return sequence["number_next_actual"]
+        return None
 
-        return _number_next_actual
+    def get_res_partner_title_id(self, title: str) -> Optional[int]:
+        """Returns the ID of the partner title.
 
-    def get_res_partner_title_id(self,_title):
-        """
-        Ermittelt die ID der Anrede
-        :param _title: Anrede
-        :return:
+        Args:
+            title: The title to search for.
+
+        Returns:
+            The ID of the title if found, None otherwise.
         """
         RES_PARTNER_TITLE = self.odoo.env['res.partner.title']
-        _title_id = RES_PARTNER_TITLE.search([('name', '=', _title)])
-        if len(_title_id) != 0:
-            _get_title_id = _title_id[0]
-        else:
-            _get_title_id = None
+        title_id = RES_PARTNER_TITLE.search([('name', '=', title)])
+        return title_id[0] if title_id else None
 
-        return _get_title_id
+    def set_ir_sequence_number_next_actual(self, code: str, set_value: int) -> bool:
+        """Sets the next actual number in the sequence.
 
-    def set_ir_sequence_number_next_actual(self,_code,_set):
-        IR_SEQUENCE = self.odoo.env['ir.sequence']
-        _sequence_id = IR_SEQUENCE.search([('code', '=', _code)])
-        if len(_sequence_id) != 0:
-            _ir_sequence = IR_SEQUENCE.browse(_sequence_id)
-            _ir_sequence_data = {'number_next_actual': _set}
-            _ir_sequence.write(_ir_sequence_data)
-            _done = True
-        else:
-            _done = False
+        Args:
+            code: The code of the sequence.
+            set_value: The new value for the next actual number.
 
-        return _done
-
-    def set_stock_warehouse_orderpoint(self,_product_id):
+        Returns:
+            True if the operation was successful, False otherwise.
         """
-        Setzt den Meldebestand für ein Produkt
-        :param _product_id: ID des Produktes
-        :return:
+        IR_SEQUENCE = self.odoo.env['ir.sequence']
+        sequence_id = IR_SEQUENCE.search([('code', '=', code)])
+        if sequence_id:
+            sequence = IR_SEQUENCE.browse(sequence_id)
+            sequence_data = {'number_next_actual': set_value}
+            sequence.write(sequence_data)
+            return True
+        return False
+
+    def set_stock_warehouse_orderpoint(self, product_id: int) -> bool:
+        """Sets the reorder point for a product.
+
+        Args:
+            product_id: The ID of the product.
+
+        Returns:
+            True if the operation was successful, False otherwise.
         """
         STOCK_WAREHOUSE_ORDERPOINT = self.odoo.env['stock.warehouse.orderpoint']
-        _stock_warehouse_orderpoint_id = STOCK_WAREHOUSE_ORDERPOINT.search([('product_id', '=', _product_id)])
-        if len(_stock_warehouse_orderpoint_id) == 0:
-            _orderpoint_data = {
-                'product_id': _product_id,
+        orderpoint_id = STOCK_WAREHOUSE_ORDERPOINT.search([('product_id', '=', product_id)])
+        if not orderpoint_id:
+            orderpoint_data = {
+                'product_id': product_id,
                 'product_min_qty': 0,
                 'product_max_qty': 0,
                 'qty_multiple': 1,
             }
-            STOCK_WAREHOUSE_ORDERPOINT.create(_orderpoint_data)
-            _done = True
-        else:
-            _done = False
+            STOCK_WAREHOUSE_ORDERPOINT.create(orderpoint_data)
+            return True
+        return False
 
-        return _done
+    def get_picture(self, picture_path: str) -> Optional[str]:
+        """Loads a picture from a file path and encodes it in BASE64.
 
-    def get_picture(self,_picturepath):
-        """
-        Bild von Pfad wird eingeladen und BASE64 codiert um in Odoo eingespielt zu werden.
-        :param _picturepath: Pfad zum Bild inkl. Namen
-        :return:
-        """
-        if os.path.exists(_picturepath):
-            with open(_picturepath, "rb") as f:
-                _img = f.read()
-                _return = str(base64.b64encode(_img).decode("utf-8"))
-        else:
-            return None
+        Args:
+            picture_path: The path to the picture file.
 
-        return _return
+        Returns:
+            The BASE64 encoded picture if the file exists, None otherwise.
+        """
+        if os.path.exists(picture_path):
+            with open(picture_path, "rb") as f:
+                img = f.read()
+                return str(base64.b64encode(img).decode("utf-8"))
+        return None
 
-    def get_product_uom_id(self,_uom):
+    def get_product_uom_id(self, uom: str) -> int:
+        """Returns the ID of the product unit of measure.
+
+        Args:
+            uom: The unit of measure to search for.
+
+        Returns:
+            The ID of the unit of measure if found, 1 (default) otherwise.
         """
-        Ermittelt die ID der Mengeneinheit
-        :param _uom: Mengeneinheit
-        :return:
-        """
-        if self.odoo_version in [10,11,12]:
+        if self.odoo_version in [10, 11, 12]:
             PRODUCT_UOM = self.odoo.env['product.uom']
         else:
-             PRODUCT_UOM = self.odoo.env['uom.uom']
-        _uom_id = PRODUCT_UOM.search([('name', '=', _uom)])
+            PRODUCT_UOM = self.odoo.env['uom.uom']
+        uom_id = PRODUCT_UOM.search([('name', '=', uom)])
+        return uom_id[0] if uom_id else 1
 
-        if len(_uom_id) != 0:
-            _get_uom_id = _uom_id[0]
-        else:
-            _get_uom_id = 1 # Default: Stück
+    def string_contains_numbers(self, source: str) -> bool:
+        """Checks if a string contains numbers.
 
-        return _get_uom_id
+        Args:
+            source: The string to check.
 
-
-    def string_contains_numbers(self,source):
-        """
-        Kontrolle ob String eine Zahl beinhaltet
-        :param source: String mit Infos
-        :return: True -> String beinhaltet eine Zahl
+        Returns:
+            True if the string contains numbers, False otherwise.
         """
         return any(i.isdigit() for i in source)
 
-    def extract_street_address_part(self,streetinfos):
+    def extract_street_address_part(self, street_infos: str) -> tuple:
+        """Extracts street and house number from a string.
+
+        Args:
+            street_infos: The string containing street and house number.
+
+        Returns:
+            A tuple containing the street and house number.
         """
-        Extrahiert Strasse und Hausnummer aus einem String und liefert beide Infos getrennt zurück
-        :param streetinfos: Strasseninfos
-        :return: Strasse und Hausnummer
-        """
-        street = streetinfos
+        street = street_infos
         house_no = ""
 
-        if len(streetinfos) > 0:
-            street_parts = streetinfos.split(" ")
+        if len(street_infos) > 0:
+            street_parts = street_infos.split(" ")
             if len(street_parts) == 2:
                 street = street_parts[0]
                 house_no = street_parts[1]
@@ -185,10 +215,10 @@ class EqOdooConnection(odoo_connection.OdooConnection):
                 part_position = 1
                 for part in street_parts:
                     if part_position == len(street_parts):
-                        if string_contains_numbers(part):                   # beinhaltet die letzte Position wirklich eine Zahl
-                            house_no = part                                 # ja, es ist typische Adresse -> Weiherstrasse 12
+                        if self.string_contains_numbers(part):  # beinhaltet die letzte Position wirklich eine Zahl
+                            house_no = part  # ja, es ist typische Adresse -> Weiherstrasse 12
                         else:
-                            street += part                                  # nein, es ist z.B. eine GB Adresse -> Flat 42A Ashburnham Mansions
+                            street += part  # nein, es ist z.B. eine GB Adresse -> Flat 42A Ashburnham Mansions
                     else:
                         street += part + " "
 
@@ -198,21 +228,22 @@ class EqOdooConnection(odoo_connection.OdooConnection):
         house_no = house_no.strip()
         return street, house_no
 
+    def check_if_company_exists(self, company_name: str, zip_code: str, city: str) -> Optional[int]:
+        """Checks if a company exists in the res_partner table.
 
-    def check_if_company_exists(self,company_name, zip, city):
-        """
-        Kontrolliert ob ein Unternehmen bereits in der Tabelle res_partner vorhanden ist
-        :param company_name: Unternehmensname
-        :param zip: PLZ
-        :param city: Stadt
-        :return: ID -> falls das Unternehemen in der Tabelle res_partner vorhanden ist
+        Args:
+            company_name: The name of the company.
+            zip_code: The zip code of the company.
+            city: The city of the company.
+
+        Returns:
+            The ID of the company if found, None otherwise.
         """
         RES_PARTNER = self.odoo.env['res.partner']
-        record = RES_PARTNER.search([('name', 'like', company_name),
-                                    ('zip', '=', zip),
-                                    ('city', '=', city),
-                                    ('is_company', '=', 'true')])
-        if record:
-            return record[0]
-
-        return None
+        record = RES_PARTNER.search([
+            ('name', 'like', company_name),
+            ('zip', '=', zip_code),
+            ('city', '=', city),
+            ('is_company', '=', 'true')
+        ])
+        return record[0] if record else None
