@@ -12,13 +12,25 @@ Typical usage example:
 import odoorpc
 import yaml
 import urllib
-import sys
 from typing import Optional
 import logging
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+class OdooConnectionError(Exception):
+    """Base exception for Odoo connection errors."""
+    pass
+
+
+class OdooConfigError(OdooConnectionError):
+    """Exception raised for configuration file errors."""
+    pass
+
+
+class OdooAuthError(OdooConnectionError):
+    """Exception raised for authentication errors."""
+    pass
 
 class OdooConnection:
     """Base class for establishing and managing Odoo server connections.
@@ -45,7 +57,7 @@ class OdooConnection:
             yaml.YAMLError: If the YAML file is malformed.
         """
         try:
-            with open(eq_yaml_path, "r") as stream:
+            with open(eq_yaml_path, "r", encoding="utf-8") as stream:
                 data = yaml.safe_load(stream)
             connection_data = data['Server']
             self.odoo_address = connection_data.get('url', '0.0.0.0')
@@ -55,18 +67,18 @@ class OdooConnection:
             self.db = connection_data.get('database', 'dbname')
             self.protocol = connection_data.get('protocol', 'jsonrpc')
             self.odoo_version = 0
-            
+
             # Build connection
             self.odoo = self.odoo_connect()
-        except FileNotFoundError:
+        except FileNotFoundError as e:
             logger.error(f"Configuration file not found: {eq_yaml_path}")
-            sys.exit(1)
+            raise OdooConfigError(f"Configuration file not found: {eq_yaml_path}") from e
         except yaml.YAMLError as e:
             logger.error(f"Error parsing YAML configuration: {e}")
-            sys.exit(1)
+            raise OdooConfigError(f"Error parsing YAML configuration: {e}") from e
         except urllib.error.URLError as ex:
             logger.error(f"Connection error: Please check your parameters and connection: {ex}")
-            sys.exit(1)
+            raise OdooConnectionError(f"Connection error: {ex}") from ex
 
     def odoo_connect(self) -> odoorpc.ODOO:
         """Establishes connection to the Odoo server.
@@ -82,7 +94,6 @@ class OdooConnection:
         protocol = self.protocol
         odoo_port = self.odoo_port
         if odoo_address.startswith('https'):
-            ssl = True
             odoo_address = odoo_address.replace('https:', '')
             protocol = 'jsonrpc+ssl'
             if odoo_port <= 0:
@@ -111,7 +122,7 @@ class OdooConnection:
             return odoo_con
         except urllib.error.URLError as ex:
             logger.error(f"Connection error: Please check your parameters and connection: {ex}")
-            sys.exit(1)
+            raise OdooConnectionError(f"Connection error: {ex}") from ex
         except odoorpc.error.RPCError as e:
             logger.error(f"Authentication error: {e}")
-            sys.exit(1)
+            raise OdooAuthError(f"Authentication error: {e}") from e

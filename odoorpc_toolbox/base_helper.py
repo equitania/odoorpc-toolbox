@@ -244,6 +244,6 @@ class EqOdooConnection(odoo_connection.OdooConnection):
             ('name', 'like', company_name),
             ('zip', '=', zip_code),
             ('city', '=', city),
-            ('is_company', '=', 'true')
+            ('is_company', '=', True)
         ])
         return record[0] if record else None

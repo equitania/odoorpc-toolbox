@@ -1,11 +1,17 @@
 import setuptools
+import re
 
-with open("README.md", "r") as fh:
+with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
+
+# Read version from _version.py without importing the package
+with open("odoorpc_toolbox/_version.py", "r", encoding="utf-8") as fh:
+    version_match = re.search(r"^__version__\s*=\s*['\"]([^'\"]*)['\"]", fh.read(), re.M)
+    version = version_match.group(1) if version_match else "0.0.0"
 
 setuptools.setup(
     name="odoorpc-toolbox",
-    version="0.1.0",
+    version=version,
     author="Equitania Software GmbH",
     author_email="info@equitania.de",
     description="Helper Functions for OdooRPC.",
