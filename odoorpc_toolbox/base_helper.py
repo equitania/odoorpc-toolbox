@@ -11,7 +11,7 @@ Typical usage example:
 
 import os
 import base64
-from typing import Optional, List, Tuple, Union
+from typing import Any, Dict, Optional, List, Tuple, Union
 from . import odoo_connection
 
 
@@ -247,3 +247,193 @@ class EqOdooConnection(odoo_connection.OdooConnection):
             ('is_company', '=', True)
         ])
         return record[0] if record else None
+
+    # ==================== NEW METHODS ====================
+
+    def get_country_id(self, country_name: str) -> Optional[int]:
+        """Returns the country ID for a given country name.
+
+        Args:
+            country_name: The name of the country (e.g., 'Germany', 'Deutschland').
+
+        Returns:
+            The ID of the country if found, None otherwise.
+        """
+        RES_COUNTRY = self.odoo.env['res.country']
+        country_ids = RES_COUNTRY.search([('name', '=', country_name)])
+        if not country_ids:
+            # Try case-insensitive search
+            country_ids = RES_COUNTRY.search([('name', 'ilike', country_name)])
+        return country_ids[0] if country_ids else None
+
+    def get_country_id_by_code(self, country_code: str) -> Optional[int]:
+        """Returns the country ID for a given ISO country code.
+
+        Args:
+            country_code: The ISO 3166-1 alpha-2 country code (e.g., 'DE', 'US').
+
+        Returns:
+            The ID of the country if found, None otherwise.
+        """
+        RES_COUNTRY = self.odoo.env['res.country']
+        country_ids = RES_COUNTRY.search([('code', '=', country_code.upper())])
+        return country_ids[0] if country_ids else None
+
+    def create_partner(
+        self,
+        name: str,
+        is_company: bool = False,
+        email: Optional[str] = None,
+        phone: Optional[str] = None,
+        street: Optional[str] = None,
+        city: Optional[str] = None,
+        zip_code: Optional[str] = None,
+        country_id: Optional[int] = None,
+        **kwargs: Any
+    ) -> int:
+        """Creates a new partner (contact or company) in Odoo.
+
+        Args:
+            name: The name of the partner.
+            is_company: Whether this is a company (True) or individual (False).
+            email: Email address.
+            phone: Phone number.
+            street: Street address.
+            city: City name.
+            zip_code: ZIP/postal code.
+            country_id: ID of the country.
+            **kwargs: Additional fields to set on the partner.
+
+        Returns:
+            The ID of the newly created partner.
+        """
+        RES_PARTNER = self.odoo.env['res.partner']
+
+        partner_data = {
+            'name': name,
+            'is_company': is_company,
+        }
+
+        if email:
+            partner_data['email'] = email
+        if phone:
+            partner_data['phone'] = phone
+        if street:
+            partner_data['street'] = street
+        if city:
+            partner_data['city'] = city
+        if zip_code:
+            partner_data['zip'] = zip_code
+        if country_id:
+            partner_data['country_id'] = country_id
+
+        # Add any additional fields
+        partner_data.update(kwargs)
+
+        return RES_PARTNER.create(partner_data)
+
+    def get_product_by_ref(self, default_code: str) -> Optional[int]:
+        """Returns the product ID for a given internal reference (default_code).
+
+        Args:
+            default_code: The internal reference/SKU of the product.
+
+        Returns:
+            The ID of the product if found, None otherwise.
+        """
+        PRODUCT_PRODUCT = self.odoo.env['product.product']
+        product_ids = PRODUCT_PRODUCT.search([('default_code', '=', default_code)])
+        return product_ids[0] if product_ids else None
+
+    def get_product_template_by_ref(self, default_code: str) -> Optional[int]:
+        """Returns the product template ID for a given internal reference.
+
+        Args:
+            default_code: The internal reference/SKU of the product.
+
+        Returns:
+            The ID of the product template if found, None otherwise.
+        """
+        PRODUCT_TEMPLATE = self.odoo.env['product.template']
+        template_ids = PRODUCT_TEMPLATE.search([('default_code', '=', default_code)])
+        return template_ids[0] if template_ids else None
+
+    def execute_method(
+        self,
+        model: str,
+        method: str,
+        record_ids: Optional[List[int]] = None,
+        args: Optional[List[Any]] = None,
+        kwargs: Optional[Dict[str, Any]] = None
+    ) -> Any:
+        """Executes a method on an Odoo model via RPC.
+
+        This is a generic method to call any Odoo model method.
+
+        Args:
+            model: The Odoo model name (e.g., 'res.partner').
+            method: The method name to call (e.g., 'name_search').
+            record_ids: Optional list of record IDs to call the method on.
+            args: Optional positional arguments for the method.
+            kwargs: Optional keyword arguments for the method.
+
+        Returns:
+            The result of the method call.
+        """
+        Model = self.odoo.env[model]
+
+        if record_ids:
+            records = Model.browse(record_ids)
+            if args and kwargs:
+                return getattr(records, method)(*args, **kwargs)
+            elif args:
+                return getattr(records, method)(*args)
+            elif kwargs:
+                return getattr(records, method)(**kwargs)
+            else:
+                return getattr(records, method)()
+        else:
+            if args and kwargs:
+                return getattr(Model, method)(*args, **kwargs)
+            elif args:
+                return getattr(Model, method)(*args)
+            elif kwargs:
+                return getattr(Model, method)(**kwargs)
+            else:
+                return getattr(Model, method)()
+
+    def search_read(
+        self,
+        model: str,
+        domain: Optional[List] = None,
+        fields: Optional[List[str]] = None,
+        limit: Optional[int] = None,
+        offset: int = 0,
+        order: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """Searches for records and returns specified fields.
+
+        This is a convenience method combining search and read operations.
+
+        Args:
+            model: The Odoo model name (e.g., 'res.partner').
+            domain: Search domain (e.g., [('is_company', '=', True)]).
+            fields: List of fields to return (e.g., ['name', 'email']).
+            limit: Maximum number of records to return.
+            offset: Number of records to skip.
+            order: Sort order (e.g., 'name asc').
+
+        Returns:
+            List of dictionaries containing the requested fields.
+        """
+        Model = self.odoo.env[model]
+
+        search_domain = domain or []
+        search_fields = fields or ['id', 'name']
+
+        record_ids = Model.search(search_domain, limit=limit, offset=offset, order=order)
+
+        if not record_ids:
+            return []
+
+        return Model.read(record_ids, search_fields)

@@ -21,15 +21,19 @@
 
 ### Neue Funktionen
 
-- [ ] **`get_country_id(name)`** - Land-ID anhand des Namens abrufen
-- [ ] **`create_partner(data)`** - Partner erstellen mit Validierung
-- [ ] **`get_product_by_ref(ref)`** - Produkt via interne Referenz suchen
-- [ ] **`execute_method(model, method, args)`** - Generischer RPC-Methodenaufruf
+- [x] **`get_country_id(name)`** - Land-ID anhand des Namens abrufen ✅
+- [x] **`get_country_id_by_code(code)`** - Land-ID anhand ISO-Code abrufen ✅
+- [x] **`create_partner(data)`** - Partner erstellen mit Validierung ✅
+- [x] **`get_product_by_ref(ref)`** - Produkt via interne Referenz suchen ✅
+- [x] **`get_product_template_by_ref(ref)`** - Produktvorlage via Referenz suchen ✅
+- [x] **`execute_method(model, method, args)`** - Generischer RPC-Methodenaufruf ✅
+- [x] **`search_read(model, domain, fields)`** - Suchen und Lesen kombiniert ✅
 - [x] **Custom Exception-Klassen** - `OdooConnectionError`, `OdooConfigError`, `OdooAuthError` ✅
+- [x] **MCP-Discovery** - `get_available_methods()`, `get_method_schema()` für MCP-Server ✅
 
 ### Dokumentation & Tests
 
-- [x] **Unit-Tests erstellen** - 27 pytest-Tests, 66% Coverage ✅
+- [x] **Unit-Tests erstellen** - 44 pytest-Tests ✅
 - [ ] **Docstrings überprüfen** - Alle Methoden dokumentiert?
 - [ ] **Beispiel-Skripte hinzufügen** - Praktische Anwendungsbeispiele in `examples/`
 
@@ -52,15 +56,19 @@
 
 ### New Features
 
-- [ ] **`get_country_id(name)`** - Get country ID by name
-- [ ] **`create_partner(data)`** - Create partner with validation
-- [ ] **`get_product_by_ref(ref)`** - Search product by internal reference
-- [ ] **`execute_method(model, method, args)`** - Generic RPC method call
+- [x] **`get_country_id(name)`** - Get country ID by name ✅
+- [x] **`get_country_id_by_code(code)`** - Get country ID by ISO code ✅
+- [x] **`create_partner(data)`** - Create partner with validation ✅
+- [x] **`get_product_by_ref(ref)`** - Search product by internal reference ✅
+- [x] **`get_product_template_by_ref(ref)`** - Search product template by reference ✅
+- [x] **`execute_method(model, method, args)`** - Generic RPC method call ✅
+- [x] **`search_read(model, domain, fields)`** - Combined search and read ✅
 - [x] **Custom exception classes** - `OdooConnectionError`, `OdooConfigError`, `OdooAuthError` ✅
+- [x] **MCP Discovery** - `get_available_methods()`, `get_method_schema()` for MCP servers ✅
 
 ### Documentation & Tests
 
-- [x] **Create unit tests** - 27 pytest tests, 66% coverage ✅
+- [x] **Create unit tests** - 44 pytest tests ✅
 - [ ] **Review docstrings** - Are all methods documented?
 - [ ] **Add example scripts** - Practical usage examples in `examples/`
 
@@ -75,5 +83,6 @@
 | 🔴 High | Replace `sys.exit(1)` | `odoo_connection.py` | ✅ Done |
 | 🟡 Medium | Fix return types | `base_helper.py` | ✅ Done |
 | 🟡 Medium | Remove dead code | `odoo_connection.py:85` | ✅ Done |
-| 🟢 Low | Add new helper methods | `base_helper.py` | Pending |
-| 🟢 Low | Create unit tests | `tests/` | ✅ Done (27 tests) |
+| 🟢 Low | Add new helper methods | `base_helper.py` | ✅ Done (7 new methods) |
+| 🟢 Low | Create unit tests | `tests/` | ✅ Done (44 tests) |
+| 🟢 Low | MCP Discovery | `introspection.py` | ✅ Done |
