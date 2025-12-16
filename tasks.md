@@ -15,9 +15,9 @@
 ### Code-Qualität
 
 - [x] **Unbenutzte Variable entfernen** - `odoo_connection.py:85`: `ssl = True` wurde entfernt ✅
-- [ ] **Return-Typen vereinheitlichen** - `get_res_partner_category_id()` gibt inkonsistente Typen zurück
-- [ ] **Type Hints vervollständigen** - `tuple` → `tuple[str, str]` für `extract_street_address_part()`
-- [ ] **Logging-Konfiguration überarbeiten** - `basicConfig()` auf Modul-Ebene kann Konflikte verursachen
+- [x] **Return-Typen vereinheitlichen** - `get_res_partner_category_id()` gibt jetzt immer `int` zurück ✅
+- [x] **Type Hints vervollständigen** - `tuple` → `Tuple[str, str]` für `extract_street_address_part()` ✅
+- [x] **Logging-Konfiguration überarbeiten** - `basicConfig()` entfernt, nur `getLogger(__name__)` ✅
 
 ### Neue Funktionen
 
@@ -46,9 +46,9 @@
 ### Code Quality
 
 - [x] **Remove unused variable** - `odoo_connection.py:85`: `ssl = True` removed ✅
-- [ ] **Unify return types** - `get_res_partner_category_id()` returns inconsistent types
-- [ ] **Complete type hints** - `tuple` → `tuple[str, str]` for `extract_street_address_part()`
-- [ ] **Revise logging configuration** - `basicConfig()` at module level can cause conflicts
+- [x] **Unify return types** - `get_res_partner_category_id()` now always returns `int` ✅
+- [x] **Complete type hints** - `tuple` → `Tuple[str, str]` for `extract_street_address_part()` ✅
+- [x] **Revise logging configuration** - `basicConfig()` removed, only `getLogger(__name__)` ✅
 
 ### New Features
 
@@ -73,7 +73,7 @@
 | 🔴 High | Create `__init__.py` | `odoorpc_toolbox/__init__.py` | ✅ Done |
 | 🔴 High | Fix Boolean bug | `base_helper.py:247` | ✅ Done |
 | 🔴 High | Replace `sys.exit(1)` | `odoo_connection.py` | ✅ Done |
-| 🟡 Medium | Fix return types | `base_helper.py` | Pending |
+| 🟡 Medium | Fix return types | `base_helper.py` | ✅ Done |
 | 🟡 Medium | Remove dead code | `odoo_connection.py:85` | ✅ Done |
 | 🟢 Low | Add new helper methods | `base_helper.py` | Pending |
 | 🟢 Low | Create unit tests | `tests/` | ✅ Done (27 tests) |

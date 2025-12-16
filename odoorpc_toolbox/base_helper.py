@@ -11,7 +11,7 @@ Typical usage example:
 
 import os
 import base64
-from typing import Optional, List, Union
+from typing import Optional, List, Tuple, Union
 from . import odoo_connection
 
 
@@ -75,11 +75,11 @@ class EqOdooConnection(odoo_connection.OdooConnection):
             ID of the existing or newly created category.
         """
         RES_PARTNER_CATEGORY = self.odoo.env['res.partner.category']
-        category_id = RES_PARTNER_CATEGORY.search([('name', '=', category_name)])
-        if not category_id:
-            category_data = {'name': category_name}
-            category_id = RES_PARTNER_CATEGORY.create(category_data)
-        return category_id
+        category_ids = RES_PARTNER_CATEGORY.search([('name', '=', category_name)])
+        if category_ids:
+            return category_ids[0]
+        category_data = {'name': category_name}
+        return RES_PARTNER_CATEGORY.create(category_data)
 
     def get_ir_sequence_number_next_actual(self, code: str) -> Optional[int]:
         """Returns the next actual number in the sequence.
@@ -193,14 +193,14 @@ class EqOdooConnection(odoo_connection.OdooConnection):
         """
         return any(i.isdigit() for i in source)
 
-    def extract_street_address_part(self, street_infos: str) -> tuple:
+    def extract_street_address_part(self, street_infos: str) -> Tuple[str, str]:
         """Extracts street and house number from a string.
 
         Args:
             street_infos: The string containing street and house number.
 
         Returns:
-            A tuple containing the street and house number.
+            A tuple containing (street, house_number).
         """
         street = street_infos
         house_no = ""
