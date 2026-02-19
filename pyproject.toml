@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "odoorpc-toolbox"
 dynamic = ["version"]
-description = "Helper Functions for OdooRPC."
+description = "Helper functions for Odoo server operations via internalized JSON-RPC."
 readme = "README.md"
 license = "AGPL-3.0-only"
 requires-python = ">=3.10"

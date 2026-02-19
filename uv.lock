@@ -347,19 +347,9 @@ wheels = [
 ]
 
 [[package]]
-name = "odoorpc"
-version = "0.10.1"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/cf/0a/9f907fbfefd2486bb4a3faab03f094f03b300b413004f348a3583ecc1898/OdooRPC-0.10.1.tar.gz", hash = "sha256:d0bc524c5b960781165575bad9c13d032d6f968c3c09276271045ddbbb483aa5", size = 58086 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/20/60/8c5ea2a63151d6c1215e127909eeee3c16e792bbae92ab596dd921d6669d/OdooRPC-0.10.1-py2.py3-none-any.whl", hash = "sha256:a0900bdd5c989c414b1ef40dafccd9363f179312d9166d9486cf70c7c2f0dd44", size = 38482 },
-]
-
-[[package]]
 name = "odoorpc-toolbox"
 source = { editable = "." }
 dependencies = [
-    { name = "odoorpc" },
     { name = "pyyaml" },
 ]
 
@@ -376,7 +366,6 @@ dev = [
 requires-dist = [
     { name = "black", marker = "extra == 'dev'", specifier = ">=23.0.0" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.0.0" },
-    { name = "odoorpc", specifier = ">=0.10.1" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0.0" },
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=4.0.0" },
     { name = "pyyaml", specifier = ">=6.0" },

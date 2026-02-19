@@ -8,11 +8,11 @@
 
 ### Projektübersicht
 
-Ein Python-Paket mit Hilfsfunktionen und Utilities für die Arbeit mit OdooRPC. Es vereinfacht häufige Odoo-Operationen wie Partner-Verwaltung, Bundesland/Länder-Abfragen, Dateioperationen und Sequenzverwaltung.
+Ein Python-Paket mit Hilfsfunktionen und Utilities für Odoo-Server-Operationen. Die OdooRPC-Funktionalität ist vollständig internalisiert (JSON-RPC 2.0). Es vereinfacht häufige Odoo-Operationen wie Partner-Verwaltung, Bundesland/Länder-Abfragen, Dateioperationen und Sequenzverwaltung.
 
 **Autor**: Equitania Software GmbH - Pforzheim - Germany
 **Lizenz**: GNU Affero General Public License v3
-**Python**: >= 3.8
+**Python**: >= 3.10
 
 ### Funktionen
 
@@ -89,9 +89,9 @@ image_data = connection.get_picture("/pfad/zum/bild.jpg")
 
 ### Abhängigkeiten
 
-- Python >= 3.8
-- OdooRPC >= 0.10.1
-- PyYAML >= 5.4.1
+- Python >= 3.10
+- PyYAML >= 6.0
+- OdooRPC-Funktionalität ist vollständig internalisiert (keine externe Abhängigkeit)
 
 ---
 
@@ -99,11 +99,11 @@ image_data = connection.get_picture("/pfad/zum/bild.jpg")
 
 ### Project Overview
 
-A Python package providing helper functions and utilities for working with OdooRPC. It simplifies common Odoo operations like partner management, state/country lookups, file operations, and sequence management.
+A Python package providing helper functions and utilities for Odoo server operations. The OdooRPC functionality is fully internalized (JSON-RPC 2.0). It simplifies common Odoo operations like partner management, state/country lookups, file operations, and sequence management.
 
 **Author**: Equitania Software GmbH - Pforzheim - Germany
 **License**: GNU Affero General Public License v3
-**Python**: >= 3.8
+**Python**: >= 3.10
 
 ### Features
 
@@ -180,9 +180,9 @@ image_data = connection.get_picture("/path/to/image.jpg")
 
 ### Requirements
 
-- Python >= 3.8
-- OdooRPC >= 0.10.1
-- PyYAML >= 5.4.1
+- Python >= 3.10
+- PyYAML >= 6.0
+- OdooRPC functionality is fully internalized (no external dependency)
 
 ---
 

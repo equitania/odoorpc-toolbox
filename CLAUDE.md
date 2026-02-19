@@ -4,12 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**odoorpc-toolbox** is a Python package providing helper functions and utilities for working with OdooRPC. It simplifies common Odoo operations like partner management, state/country lookups, file operations, and sequence management.
+**odoorpc-toolbox** is a Python package providing helper functions and utilities for Odoo server operations (OdooRPC functionality internalized). It simplifies common Odoo operations like partner management, state/country lookups, file operations, and sequence management.
 
 - **Author**: Equitania Software GmbH
 - **License**: GNU Affero General Public License v3
 - **Python**: >= 3.10
-- **Current Version**: 0.4.0
+- **Current Version**: 0.5.1
 
 ## Development Commands
 
