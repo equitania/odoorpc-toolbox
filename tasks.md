@@ -86,3 +86,75 @@
 | 🟢 Low | Add new helper methods | `base_helper.py` | ✅ Done (7 new methods) |
 | 🟢 Low | Create unit tests | `tests/` | ✅ Done (44 tests) |
 | 🟢 Low | MCP Discovery | `introspection.py` | ✅ Done |
+
+---
+
+## Performance & Architektur-Roadmap
+
+### Phase 1: Quick Wins → v0.6.0 ✅
+
+- [x] **Native `search_read()`** - 1 RPC Call statt 2 via `execute_kw` ✅
+- [x] **Sequence-Methoden optimiert** - `get_ir_sequence_number_next_actual`: 1 Call statt 2-3; `set_ir_sequence_number_next_actual`: 2 Calls statt 3-4 ✅
+- [x] **TTL-Cache für statische Lookups** - Thread-safe `TTLCache` mit maxsize + TTL-Eviction, `@cached_lookup` Decorator ✅
+- [x] **Cache auf 5 Methoden angewendet** - `get_state_id`, `get_country_id_by_code`, `get_res_partner_title_id`, `get_res_partner_category_id`, `get_product_uom_id` ✅
+- [x] **`batch_write()` Context Manager** - Temporär `auto_commit=False`, Commit bei Exit, Rollback bei Exception ✅
+- [x] **`batch_commit()` in Environment** - Gruppiert dirty Records nach Model ✅
+- [x] **34 neue Tests** - 145 Tests gesamt, alle bestanden ✅
+
+### Phase 2: Transport-Modernisierung → v0.7.0
+
+- [ ] **Transport-Abstraktion** - `Transport` Protocol in `rpc/transport.py` mit `UrllibTransport` (Fallback) und `HttpxTransport` (Connection Pooling, HTTP/2)
+- [ ] **`create_transport()` Factory** - `backend="auto"` versucht httpx, fällt auf urllib zurück
+- [ ] **Retry mit Exponential Backoff** - In `HttpxTransport` integriert, konfigurierbar: `max_attempts`, `backoff_factor`, `retry_on` (HTTP-Statuscodes)
+- [ ] **Erweiterte YAML-Konfiguration** - Neue optionale Sections: `transport`, `retry`, `timeout`, `cache` in Server-Config
+- [ ] **Request-Metriken** - `RequestMetrics` Dataclass: `total_requests`, `total_errors`, `total_time_ms`, `avg_time_ms`, Thread-safe
+- [ ] **`Proxy` Refactoring** - `ProxyJSON.__call__` und `ProxyHTTP.__call__` nutzen `self._transport.request()` statt `self._opener.open()`
+- [ ] **httpx als optionale Dependency** - `pip install odoorpc-toolbox[httpx]` für `httpx[http2]>=0.25.0`
+- [ ] **Backward-Kompatibilität** - `opener`-Parameter wird in `UrllibTransport` gewrappt
+- [ ] **Tests** - `test_transport.py`, `test_metrics.py`, erweiterte `test_rpc.py` und `test_connection.py`
+
+### Phase 3: Smart ORM → v0.8.0
+
+- [ ] **Prefetch-System für Relationen** - `browse_with_prefetch()` Classmethod + erweiterte `_init_values()` um N+1-Query-Problem zu lösen
+- [ ] **`_prefetch_relations()`** - Sammelt alle Relation-IDs, batch-lädt Ziel-Records, reduziert O(N×M) auf O(M) RPC-Calls
+- [ ] **Batch-Commit Erweiterung** - Gruppierung nach Model, pro Record alle geänderten Fields in einem `write()`
+- [ ] **Deferred Auto-Commit** - Neuer Modus `auto_commit="deferred"`: Field-Writes markieren Record als dirty, Commit aufgeschoben bis zum nächsten Read-RPC-Call oder explizitem `commit()`
+- [ ] **Flush-Trigger** - Vor RPC-Calls in `Model.__getattr__` automatisch dirty Records committen
+- [ ] **`auto_commit` Validierung** - `tools.py`: Akzeptiert `True`, `False`, `"deferred"`
+- [ ] **Tests** - `test_prefetch.py`, erweiterte `test_batch.py`
+
+---
+
+## Performance & Architecture Roadmap (EN)
+
+### Phase 1: Quick Wins → v0.6.0 ✅
+
+- [x] **Native `search_read()`** - 1 RPC call instead of 2 via `execute_kw` ✅
+- [x] **Sequence methods optimized** - `get_ir_sequence_number_next_actual`: 1 call instead of 2-3; `set_ir_sequence_number_next_actual`: 2 calls instead of 3-4 ✅
+- [x] **TTL cache for static lookups** - Thread-safe `TTLCache` with maxsize + TTL eviction, `@cached_lookup` decorator ✅
+- [x] **Cache applied to 5 methods** - `get_state_id`, `get_country_id_by_code`, `get_res_partner_title_id`, `get_res_partner_category_id`, `get_product_uom_id` ✅
+- [x] **`batch_write()` context manager** - Temporarily sets `auto_commit=False`, commits on exit, rollback on exception ✅
+- [x] **`batch_commit()` in Environment** - Groups dirty records by model ✅
+- [x] **34 new tests** - 145 tests total, all passing ✅
+
+### Phase 2: Transport Modernization → v0.7.0
+
+- [ ] **Transport abstraction** - `Transport` protocol in `rpc/transport.py` with `UrllibTransport` (fallback) and `HttpxTransport` (connection pooling, HTTP/2)
+- [ ] **`create_transport()` factory** - `backend="auto"` tries httpx, falls back to urllib
+- [ ] **Retry with exponential backoff** - Integrated in `HttpxTransport`, configurable: `max_attempts`, `backoff_factor`, `retry_on` (HTTP status codes)
+- [ ] **Extended YAML configuration** - New optional sections: `transport`, `retry`, `timeout`, `cache` in Server config
+- [ ] **Request metrics** - `RequestMetrics` dataclass: `total_requests`, `total_errors`, `total_time_ms`, `avg_time_ms`, thread-safe
+- [ ] **`Proxy` refactoring** - `ProxyJSON.__call__` and `ProxyHTTP.__call__` use `self._transport.request()` instead of `self._opener.open()`
+- [ ] **httpx as optional dependency** - `pip install odoorpc-toolbox[httpx]` for `httpx[http2]>=0.25.0`
+- [ ] **Backward compatibility** - `opener` parameter wrapped in `UrllibTransport`
+- [ ] **Tests** - `test_transport.py`, `test_metrics.py`, extended `test_rpc.py` and `test_connection.py`
+
+### Phase 3: Smart ORM → v0.8.0
+
+- [ ] **Prefetch system for relations** - `browse_with_prefetch()` classmethod + extended `_init_values()` to solve N+1 query problem
+- [ ] **`_prefetch_relations()`** - Collects all relation IDs, batch-loads target records, reduces O(N×M) to O(M) RPC calls
+- [ ] **Batch commit enhancement** - Grouping by model, per record all changed fields in a single `write()`
+- [ ] **Deferred auto-commit** - New mode `auto_commit="deferred"`: field writes mark record as dirty, commit deferred until next read RPC call or explicit `commit()`
+- [ ] **Flush trigger** - Before RPC calls in `Model.__getattr__` automatically commit dirty records
+- [ ] **`auto_commit` validation** - `tools.py`: Accepts `True`, `False`, `"deferred"`
+- [ ] **Tests** - `test_prefetch.py`, extended `test_batch.py`
