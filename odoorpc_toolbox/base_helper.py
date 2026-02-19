@@ -15,15 +15,33 @@ import pathlib
 from typing import Any
 
 from . import odoo_connection
+from .cache import TTLCache, cached_lookup
 
 
 class EqOdooConnection(odoo_connection.OdooConnection):
     """Extended Odoo connection class with helper functions.
 
     This class inherits from OdooConnection and adds various helper methods
-    for common Odoo operations.
+    for common Odoo operations. Static lookups (countries, states, UoMs, titles,
+    categories) are cached via a TTL cache to reduce RPC calls.
     """
 
+    def __init__(self, eq_yaml_path: str, cache_maxsize: int = 256, cache_ttl: float = 3600) -> None:
+        """Initializes the connection and the lookup cache.
+
+        Args:
+            eq_yaml_path: Path to the YAML configuration file.
+            cache_maxsize: Maximum number of cached lookup entries (default: 256).
+            cache_ttl: Time-to-live for cache entries in seconds (default: 3600).
+        """
+        self._lookup_cache = TTLCache(maxsize=cache_maxsize, ttl=cache_ttl)
+        super().__init__(eq_yaml_path)
+
+    def clear_cache(self) -> None:
+        """Clear the lookup cache, forcing fresh RPC calls on next access."""
+        self._lookup_cache.clear()
+
+    @cached_lookup()
     def get_state_id(self, country_id: int, state_name: str) -> int | None:
         """Returns the state ID (Bundesland) for a given country and state name.
 
@@ -58,6 +76,7 @@ class EqOdooConnection(odoo_connection.OdooConnection):
 
         return RES_PARTNER.search(domain)
 
+    @cached_lookup()
     def get_res_partner_category_id(self, category_name: str) -> int:
         """Gets or creates a partner category (tag).
 
@@ -79,19 +98,25 @@ class EqOdooConnection(odoo_connection.OdooConnection):
     def get_ir_sequence_number_next_actual(self, code: str) -> int | None:
         """Returns the next actual number in the sequence.
 
+        Uses a single search_read RPC call instead of separate search + browse.
+
         Args:
             code: The code of the sequence.
 
         Returns:
             The next actual number in the sequence if found, None otherwise.
         """
-        IR_SEQUENCE = self.odoo.env["ir.sequence"]
-        sequence_id = IR_SEQUENCE.search([("code", "=", code)])
-        if sequence_id:
-            sequence = IR_SEQUENCE.browse(sequence_id)
-            return sequence["number_next_actual"]
+        result = self.odoo.execute_kw(
+            "ir.sequence",
+            "search_read",
+            [[("code", "=", code)]],
+            {"fields": ["number_next_actual"], "limit": 1},
+        )
+        if result:
+            return result[0]["number_next_actual"]
         return None
 
+    @cached_lookup()
     def get_res_partner_title_id(self, title: str) -> int | None:
         """Returns the ID of the partner title.
 
@@ -108,6 +133,8 @@ class EqOdooConnection(odoo_connection.OdooConnection):
     def set_ir_sequence_number_next_actual(self, code: str, set_value: int) -> bool:
         """Sets the next actual number in the sequence.
 
+        Uses search + write (2 RPC calls) instead of search + browse + write (3-4 calls).
+
         Args:
             code: The code of the sequence.
             set_value: The new value for the next actual number.
@@ -115,12 +142,17 @@ class EqOdooConnection(odoo_connection.OdooConnection):
         Returns:
             True if the operation was successful, False otherwise.
         """
-        IR_SEQUENCE = self.odoo.env["ir.sequence"]
-        sequence_id = IR_SEQUENCE.search([("code", "=", code)])
-        if sequence_id:
-            sequence = IR_SEQUENCE.browse(sequence_id)
-            sequence_data = {"number_next_actual": set_value}
-            sequence.write(sequence_data)
+        sequence_ids = self.odoo.execute_kw(
+            "ir.sequence",
+            "search",
+            [[("code", "=", code)]],
+        )
+        if sequence_ids:
+            self.odoo.execute_kw(
+                "ir.sequence",
+                "write",
+                [sequence_ids, {"number_next_actual": set_value}],
+            )
             return True
         return False
 
@@ -177,11 +209,12 @@ class EqOdooConnection(odoo_connection.OdooConnection):
 
         file_size = path.stat().st_size
         if file_size > max_size_mb * 1024 * 1024:
-            raise ValueError(f"File size ({file_size / (1024*1024):.1f}MB) exceeds {max_size_mb}MB limit")
+            raise ValueError(f"File size ({file_size / (1024 * 1024):.1f}MB) exceeds {max_size_mb}MB limit")
 
         with open(path, "rb") as f:
             return str(base64.b64encode(f.read()).decode("utf-8"))
 
+    @cached_lookup()
     def get_product_uom_id(self, uom: str) -> int:
         """Returns the ID of the product unit of measure.
 
@@ -279,6 +312,7 @@ class EqOdooConnection(odoo_connection.OdooConnection):
             country_ids = RES_COUNTRY.search([("name", "ilike", country_name)])
         return country_ids[0] if country_ids else None
 
+    @cached_lookup()
     def get_country_id_by_code(self, country_code: str) -> int | None:
         """Returns the country ID for a given ISO country code.
 
@@ -430,9 +464,11 @@ class EqOdooConnection(odoo_connection.OdooConnection):
         offset: int = 0,
         order: str | None = None,
     ) -> list[dict[str, Any]]:
-        """Searches for records and returns specified fields.
+        """Searches for records and returns specified fields in a single RPC call.
 
-        This is a convenience method combining search and read operations.
+        Uses the native Odoo ``search_read`` method via ``execute_kw`` which
+        performs the search and read in one server-side operation instead of
+        two separate RPC calls.
 
         Args:
             model: The Odoo model name (e.g., 'res.partner').
@@ -445,14 +481,13 @@ class EqOdooConnection(odoo_connection.OdooConnection):
         Returns:
             List of dictionaries containing the requested fields.
         """
-        Model = self.odoo.env[model]
-
         search_domain = domain or []
         search_fields = fields or ["id", "name"]
 
-        record_ids = Model.search(search_domain, limit=limit, offset=offset, order=order)
+        kwargs: dict[str, Any] = {"fields": search_fields, "offset": offset}
+        if limit is not None:
+            kwargs["limit"] = limit
+        if order is not None:
+            kwargs["order"] = order
 
-        if not record_ids:
-            return []
-
-        return Model.read(record_ids, search_fields)
+        return self.odoo.execute_kw(model, "search_read", [search_domain], kwargs) or []

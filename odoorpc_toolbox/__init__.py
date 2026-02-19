@@ -25,6 +25,8 @@ MCP Discovery:
 
 from ._version import __version__
 from .base_helper import EqOdooConnection
+from .batch import batch_write
+from .cache import TTLCache
 from .exceptions import (
     Error,
     InternalError,
@@ -46,6 +48,8 @@ __all__ = [
     "ODOO",
     "OdooConnection",
     "EqOdooConnection",
+    "TTLCache",
+    "batch_write",
     "Error",
     "RPCError",
     "InternalError",

@@ -51,7 +51,7 @@ class ODOO:
     ) -> None:
         if protocol not in ["jsonrpc", "jsonrpc+ssl"]:
             raise ValueError(
-                f"The protocol '{protocol}' is not supported. " f"Please choose from: {['jsonrpc', 'jsonrpc+ssl']}"
+                f"The protocol '{protocol}' is not supported. Please choose from: {['jsonrpc', 'jsonrpc+ssl']}"
             )
         try:
             port = int(port)

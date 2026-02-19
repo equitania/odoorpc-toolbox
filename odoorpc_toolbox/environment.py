@@ -80,6 +80,33 @@ class Environment:
             record.write(values)
             self.dirty.remove(record)
 
+    def batch_commit(self) -> None:
+        """Commit dirty records grouped by model for fewer RPC calls.
+
+        Groups all dirty records by their model name and commits each
+        record's accumulated changes in a single write() call per record.
+        This is more efficient than commit() when many records of the same
+        model have been modified.
+        """
+        grouped: dict[str, list] = {}
+        for record in set(self.dirty):
+            model_name = record._name
+            if model_name not in grouped:
+                grouped[model_name] = []
+            grouped[model_name].append(record)
+
+        for records in grouped.values():
+            for record in records:
+                values = {}
+                for field in record._values_to_write:
+                    if record.id in record._values_to_write[field]:
+                        value = record._values_to_write[field].pop(record.id)
+                        values[field] = value
+                        record.__class__.__dict__[field].store(record, value)
+                if values:
+                    record.write(values)
+                self.dirty.discard(record)
+
     def invalidate(self) -> None:
         """Invalidate the cache of records."""
         self.dirty.clear()
