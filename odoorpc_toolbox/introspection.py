@@ -23,20 +23,20 @@ from ._version import __version__
 
 # Type mapping for JSON Schema
 PYTHON_TO_JSON_TYPE = {
-    'int': 'integer',
-    'str': 'string',
-    'bool': 'boolean',
-    'float': 'number',
-    'list': 'array',
-    'dict': 'object',
-    'List': 'array',
-    'Dict': 'object',
-    'Tuple': 'array',
-    'None': 'null',
-    'NoneType': 'null',
-    'Optional': None,  # Handled specially
-    'Union': None,  # Handled specially
-    'Any': 'any',
+    "int": "integer",
+    "str": "string",
+    "bool": "boolean",
+    "float": "number",
+    "list": "array",
+    "dict": "object",
+    "List": "array",
+    "Dict": "object",
+    "Tuple": "array",
+    "None": "null",
+    "NoneType": "null",
+    "Optional": None,  # Handled specially
+    "Union": None,  # Handled specially
+    "Any": "any",
 }
 
 
@@ -50,48 +50,48 @@ def _parse_docstring(docstring: str | None) -> dict[str, Any]:
         Dictionary with 'description', 'args', and 'returns' keys.
     """
     if not docstring:
-        return {'description': '', 'args': {}, 'returns': ''}
+        return {"description": "", "args": {}, "returns": ""}
 
-    result = {'description': '', 'args': {}, 'returns': ''}
+    result = {"description": "", "args": {}, "returns": ""}
 
-    lines = docstring.strip().split('\n')
-    current_section = 'description'
+    lines = docstring.strip().split("\n")
+    current_section = "description"
     current_arg = None
     description_lines = []
 
     for line in lines:
         stripped = line.strip()
 
-        if stripped.startswith('Args:'):
-            current_section = 'args'
+        if stripped.startswith("Args:"):
+            current_section = "args"
             continue
-        elif stripped.startswith('Returns:'):
-            current_section = 'returns'
+        elif stripped.startswith("Returns:"):
+            current_section = "returns"
             continue
-        elif stripped.startswith('Raises:'):
-            current_section = 'raises'
+        elif stripped.startswith("Raises:"):
+            current_section = "raises"
             continue
-        elif stripped.startswith('Example:'):
-            current_section = 'example'
+        elif stripped.startswith("Example:"):
+            current_section = "example"
             continue
 
-        if current_section == 'description':
+        if current_section == "description":
             if stripped:
                 description_lines.append(stripped)
-        elif current_section == 'args':
+        elif current_section == "args":
             # Match "param_name: description" pattern
-            match = re.match(r'^(\w+):\s*(.*)$', stripped)
+            match = re.match(r"^(\w+):\s*(.*)$", stripped)
             if match:
                 current_arg = match.group(1)
-                result['args'][current_arg] = match.group(2)
+                result["args"][current_arg] = match.group(2)
             elif current_arg and stripped:
-                result['args'][current_arg] += ' ' + stripped
-        elif current_section == 'returns':
+                result["args"][current_arg] += " " + stripped
+        elif current_section == "returns":
             if stripped:
-                result['returns'] += stripped + ' '
+                result["returns"] += stripped + " "
 
-    result['description'] = ' '.join(description_lines)
-    result['returns'] = result['returns'].strip()
+    result["description"] = " ".join(description_lines)
+    result["returns"] = result["returns"].strip()
 
     return result
 
@@ -106,7 +106,7 @@ def _type_to_json_schema(type_hint: Any) -> dict[str, Any]:
         JSON Schema type definition.
     """
     if type_hint is None:
-        return {'type': 'null'}
+        return {"type": "null"}
 
     # Handle PEP 604 union types (X | None) from Python 3.10+
     if isinstance(type_hint, types.UnionType):
@@ -114,39 +114,39 @@ def _type_to_json_schema(type_hint: Any) -> dict[str, Any]:
         non_none = [a for a in args if a is not type(None)]
         if type(None) in args and len(non_none) == 1:
             inner_schema = _type_to_json_schema(non_none[0])
-            inner_schema['nullable'] = True
+            inner_schema["nullable"] = True
             return inner_schema
 
     type_str = str(type_hint)
 
     # Handle Optional[X] -> X with nullable
-    if 'Optional' in type_str:
-        inner_match = re.search(r'Optional\[(\w+)\]', type_str)
+    if "Optional" in type_str:
+        inner_match = re.search(r"Optional\[(\w+)\]", type_str)
         if inner_match:
             inner_type = inner_match.group(1)
-            json_type = PYTHON_TO_JSON_TYPE.get(inner_type, 'any')
-            return {'type': json_type, 'nullable': True}
+            json_type = PYTHON_TO_JSON_TYPE.get(inner_type, "any")
+            return {"type": json_type, "nullable": True}
 
     # Handle List[X]
-    if 'List' in type_str or 'list' in type_str:
-        return {'type': 'array'}
+    if "List" in type_str or "list" in type_str:
+        return {"type": "array"}
 
     # Handle Tuple[X, Y]
-    if 'Tuple' in type_str or 'tuple' in type_str:
-        return {'type': 'array'}
+    if "Tuple" in type_str or "tuple" in type_str:
+        return {"type": "array"}
 
     # Handle Dict[X, Y]
-    if 'Dict' in type_str or 'dict' in type_str:
-        return {'type': 'object'}
+    if "Dict" in type_str or "dict" in type_str:
+        return {"type": "object"}
 
     # Handle basic types
-    if hasattr(type_hint, '__name__'):
+    if hasattr(type_hint, "__name__"):
         type_name = type_hint.__name__
     else:
-        type_name = type_str.replace('typing.', '').split('[')[0]
+        type_name = type_str.replace("typing.", "").split("[")[0]
 
-    json_type = PYTHON_TO_JSON_TYPE.get(type_name, 'any')
-    return {'type': json_type}
+    json_type = PYTHON_TO_JSON_TYPE.get(type_name, "any")
+    return {"type": json_type}
 
 
 def get_method_schema(method_name: str, cls: type = None) -> dict[str, Any] | None:
@@ -161,6 +161,7 @@ def get_method_schema(method_name: str, cls: type = None) -> dict[str, Any] | No
     """
     if cls is None:
         from .base_helper import EqOdooConnection
+
         cls = EqOdooConnection
 
     if not hasattr(cls, method_name):
@@ -171,7 +172,7 @@ def get_method_schema(method_name: str, cls: type = None) -> dict[str, Any] | No
         return None
 
     # Skip private/magic methods
-    if method_name.startswith('_'):
+    if method_name.startswith("_"):
         return None
 
     # Get type hints
@@ -194,7 +195,7 @@ def get_method_schema(method_name: str, cls: type = None) -> dict[str, Any] | No
     required = []
 
     for param_name, param in sig.parameters.items():
-        if param_name == 'self':
+        if param_name == "self":
             continue
 
         param_schema = {}
@@ -203,11 +204,11 @@ def get_method_schema(method_name: str, cls: type = None) -> dict[str, Any] | No
         if param_name in hints:
             param_schema = _type_to_json_schema(hints[param_name])
         else:
-            param_schema = {'type': 'any'}
+            param_schema = {"type": "any"}
 
         # Add description from docstring
-        if param_name in doc_info['args']:
-            param_schema['description'] = doc_info['args'][param_name]
+        if param_name in doc_info["args"]:
+            param_schema["description"] = doc_info["args"][param_name]
 
         properties[param_name] = param_schema
 
@@ -216,21 +217,17 @@ def get_method_schema(method_name: str, cls: type = None) -> dict[str, Any] | No
             required.append(param_name)
 
     # Build return schema
-    return_schema = {'type': 'any'}
-    if 'return' in hints:
-        return_schema = _type_to_json_schema(hints['return'])
-    if doc_info['returns']:
-        return_schema['description'] = doc_info['returns']
+    return_schema = {"type": "any"}
+    if "return" in hints:
+        return_schema = _type_to_json_schema(hints["return"])
+    if doc_info["returns"]:
+        return_schema["description"] = doc_info["returns"]
 
     return {
-        'name': method_name,
-        'description': doc_info['description'],
-        'parameters': {
-            'type': 'object',
-            'properties': properties,
-            'required': required
-        },
-        'returns': return_schema
+        "name": method_name,
+        "description": doc_info["description"],
+        "parameters": {"type": "object", "properties": properties, "required": required},
+        "returns": return_schema,
     }
 
 
@@ -249,6 +246,7 @@ def get_available_methods(cls: type = None, include_inherited: bool = False) -> 
     """
     if cls is None:
         from .base_helper import EqOdooConnection
+
         cls = EqOdooConnection
 
     methods = []
@@ -256,7 +254,7 @@ def get_available_methods(cls: type = None, include_inherited: bool = False) -> 
     # Get all methods
     for name in dir(cls):
         # Skip private/magic methods
-        if name.startswith('_'):
+        if name.startswith("_"):
             continue
 
         attr = getattr(cls, name)
@@ -273,15 +271,15 @@ def get_available_methods(cls: type = None, include_inherited: bool = False) -> 
             methods.append(schema)
 
     return {
-        'schema_version': '1.0',
-        'package': 'odoorpc-toolbox',
-        'version': __version__,
-        'description': 'Helper functions for OdooRPC operations',
-        'methods': methods
+        "schema_version": "1.0",
+        "package": "odoorpc-toolbox",
+        "version": __version__,
+        "description": "Helper functions for OdooRPC operations",
+        "methods": methods,
     }
 
 
-def print_available_methods(cls: type = None, format: str = 'text') -> None:
+def print_available_methods(cls: type = None, format: str = "text") -> None:
     """Print available methods in human-readable or JSON format.
 
     Args:
@@ -292,21 +290,20 @@ def print_available_methods(cls: type = None, format: str = 'text') -> None:
 
     schema = get_available_methods(cls)
 
-    if format == 'json':
+    if format == "json":
         print(json.dumps(schema, indent=2))
     else:
         print(f"odoorpc-toolbox v{schema['version']}")
         print("=" * 50)
         print(f"Available methods: {len(schema['methods'])}\n")
 
-        for method in schema['methods']:
-            params = ', '.join(
-                f"{name}: {prop.get('type', 'any')}"
-                for name, prop in method['parameters']['properties'].items()
+        for method in schema["methods"]:
+            params = ", ".join(
+                f"{name}: {prop.get('type', 'any')}" for name, prop in method["parameters"]["properties"].items()
             )
-            returns = method['returns'].get('type', 'any')
+            returns = method["returns"].get("type", "any")
 
             print(f"  {method['name']}({params}) -> {returns}")
-            if method['description']:
+            if method["description"]:
                 print(f"      {method['description'][:60]}...")
             print()

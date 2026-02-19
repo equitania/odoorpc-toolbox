@@ -12,9 +12,9 @@ class TestStringContainsNumbers:
     @pytest.fixture
     def helper(self):
         """Create a mock helper instance."""
-        with patch('odoorpc_toolbox.base_helper.odoo_connection.OdooConnection.__init__',
-                   return_value=None):
+        with patch("odoorpc_toolbox.base_helper.odoo_connection.OdooConnection.__init__", return_value=None):
             from odoorpc_toolbox import EqOdooConnection
+
             instance = object.__new__(EqOdooConnection)
             return instance
 
@@ -42,9 +42,9 @@ class TestExtractStreetAddressPart:
     @pytest.fixture
     def helper(self):
         """Create a mock helper instance."""
-        with patch('odoorpc_toolbox.base_helper.odoo_connection.OdooConnection.__init__',
-                   return_value=None):
+        with patch("odoorpc_toolbox.base_helper.odoo_connection.OdooConnection.__init__", return_value=None):
             from odoorpc_toolbox import EqOdooConnection
+
             instance = object.__new__(EqOdooConnection)
             return instance
 
@@ -97,9 +97,9 @@ class TestGetPicture:
     @pytest.fixture
     def helper(self):
         """Create a mock helper instance."""
-        with patch('odoorpc_toolbox.base_helper.odoo_connection.OdooConnection.__init__',
-                   return_value=None):
+        with patch("odoorpc_toolbox.base_helper.odoo_connection.OdooConnection.__init__", return_value=None):
             from odoorpc_toolbox import EqOdooConnection
+
             instance = object.__new__(EqOdooConnection)
             return instance
 

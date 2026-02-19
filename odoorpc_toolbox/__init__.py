@@ -1,13 +1,20 @@
-"""OdooRPC Toolbox - Helper functions for OdooRPC operations.
+"""OdooRPC Toolbox - Helper functions for Odoo server operations.
 
-This package provides utilities for working with Odoo servers via OdooRPC,
-including connection management and common operation helpers.
+This package provides utilities for working with Odoo servers,
+including connection management, RPC communication, and common operation helpers.
+OdooRPC functionality is fully internalized - no external OdooRPC dependency needed.
 
 Example:
     from odoorpc_toolbox import EqOdooConnection
 
     connection = EqOdooConnection('config.yaml')
     partner_id = connection.get_res_partner_id(customerno="CUST001")
+
+Direct ODOO usage:
+    from odoorpc_toolbox import ODOO
+
+    odoo = ODOO('localhost', port=8069)
+    odoo.login('mydb', 'admin', 'admin')
 
 MCP Discovery:
     from odoorpc_toolbox import get_available_methods
@@ -18,27 +25,35 @@ MCP Discovery:
 
 from ._version import __version__
 from .base_helper import EqOdooConnection
+from .exceptions import (
+    Error,
+    InternalError,
+    OdooAuthError,
+    OdooConfigError,
+    OdooConnectionError,
+    RPCError,
+)
 from .introspection import (
     get_available_methods,
     get_method_schema,
     print_available_methods,
 )
-from .odoo_connection import (
-    OdooAuthError,
-    OdooConfigError,
-    OdooConnection,
-    OdooConnectionError,
-)
+from .odoo import ODOO
+from .odoo_connection import OdooConnection
 
 __all__ = [
-    '__version__',
-    'OdooConnection',
-    'EqOdooConnection',
-    'OdooConnectionError',
-    'OdooConfigError',
-    'OdooAuthError',
-    'get_available_methods',
-    'get_method_schema',
-    'print_available_methods',
+    "__version__",
+    "ODOO",
+    "OdooConnection",
+    "EqOdooConnection",
+    "Error",
+    "RPCError",
+    "InternalError",
+    "OdooConnectionError",
+    "OdooConfigError",
+    "OdooAuthError",
+    "get_available_methods",
+    "get_method_schema",
+    "print_available_methods",
 ]
-__author__ = 'Equitania Software GmbH'
+__author__ = "Equitania Software GmbH"

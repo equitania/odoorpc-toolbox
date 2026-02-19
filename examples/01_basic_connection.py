@@ -10,9 +10,9 @@ Usage:
 
 from odoorpc_toolbox import (
     EqOdooConnection,
-    OdooConnectionError,
-    OdooConfigError,
     OdooAuthError,
+    OdooConfigError,
+    OdooConnectionError,
 )
 
 
@@ -20,7 +20,7 @@ def main():
     """Demonstrate basic connection to Odoo server."""
 
     # Path to your YAML configuration file
-    config_path = 'odoo_config.yaml'
+    config_path = "odoo_config.yaml"
 
     try:
         # Establish connection
@@ -53,5 +53,5 @@ def main():
         print("Please check the server URL and port.")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

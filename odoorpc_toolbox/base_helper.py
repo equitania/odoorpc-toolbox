@@ -34,18 +34,11 @@ class EqOdooConnection(odoo_connection.OdooConnection):
         Returns:
             The ID of the state if found, None otherwise.
         """
-        RES_COUNTRY_STATE = self.odoo.env['res.country.state']
-        state_id = RES_COUNTRY_STATE.search([
-            ('name', '=', state_name),
-            ('country_id', '=', country_id)
-        ])
+        RES_COUNTRY_STATE = self.odoo.env["res.country.state"]
+        state_id = RES_COUNTRY_STATE.search([("name", "=", state_name), ("country_id", "=", country_id)])
         return state_id[0] if state_id else None
 
-    def get_res_partner_id(
-        self,
-        supplierno: str | None = None,
-        customerno: str | None = None
-    ) -> list[int]:
+    def get_res_partner_id(self, supplierno: str | None = None, customerno: str | None = None) -> list[int]:
         """Retrieves partner IDs based on supplier or customer numbers.
 
         Args:
@@ -55,13 +48,13 @@ class EqOdooConnection(odoo_connection.OdooConnection):
         Returns:
             List of matching partner IDs.
         """
-        RES_PARTNER = self.odoo.env['res.partner']
+        RES_PARTNER = self.odoo.env["res.partner"]
         domain = []
 
         if supplierno:
-            domain.append(('supplier_number', '=', supplierno))
+            domain.append(("supplier_number", "=", supplierno))
         if customerno:
-            domain.append(('customer_number', '=', customerno))
+            domain.append(("customer_number", "=", customerno))
 
         return RES_PARTNER.search(domain)
 
@@ -76,11 +69,11 @@ class EqOdooConnection(odoo_connection.OdooConnection):
         Returns:
             ID of the existing or newly created category.
         """
-        RES_PARTNER_CATEGORY = self.odoo.env['res.partner.category']
-        category_ids = RES_PARTNER_CATEGORY.search([('name', '=', category_name)])
+        RES_PARTNER_CATEGORY = self.odoo.env["res.partner.category"]
+        category_ids = RES_PARTNER_CATEGORY.search([("name", "=", category_name)])
         if category_ids:
             return category_ids[0]
-        category_data = {'name': category_name}
+        category_data = {"name": category_name}
         return RES_PARTNER_CATEGORY.create(category_data)
 
     def get_ir_sequence_number_next_actual(self, code: str) -> int | None:
@@ -92,8 +85,8 @@ class EqOdooConnection(odoo_connection.OdooConnection):
         Returns:
             The next actual number in the sequence if found, None otherwise.
         """
-        IR_SEQUENCE = self.odoo.env['ir.sequence']
-        sequence_id = IR_SEQUENCE.search([('code', '=', code)])
+        IR_SEQUENCE = self.odoo.env["ir.sequence"]
+        sequence_id = IR_SEQUENCE.search([("code", "=", code)])
         if sequence_id:
             sequence = IR_SEQUENCE.browse(sequence_id)
             return sequence["number_next_actual"]
@@ -108,8 +101,8 @@ class EqOdooConnection(odoo_connection.OdooConnection):
         Returns:
             The ID of the title if found, None otherwise.
         """
-        RES_PARTNER_TITLE = self.odoo.env['res.partner.title']
-        title_id = RES_PARTNER_TITLE.search([('name', '=', title)])
+        RES_PARTNER_TITLE = self.odoo.env["res.partner.title"]
+        title_id = RES_PARTNER_TITLE.search([("name", "=", title)])
         return title_id[0] if title_id else None
 
     def set_ir_sequence_number_next_actual(self, code: str, set_value: int) -> bool:
@@ -122,11 +115,11 @@ class EqOdooConnection(odoo_connection.OdooConnection):
         Returns:
             True if the operation was successful, False otherwise.
         """
-        IR_SEQUENCE = self.odoo.env['ir.sequence']
-        sequence_id = IR_SEQUENCE.search([('code', '=', code)])
+        IR_SEQUENCE = self.odoo.env["ir.sequence"]
+        sequence_id = IR_SEQUENCE.search([("code", "=", code)])
         if sequence_id:
             sequence = IR_SEQUENCE.browse(sequence_id)
-            sequence_data = {'number_next_actual': set_value}
+            sequence_data = {"number_next_actual": set_value}
             sequence.write(sequence_data)
             return True
         return False
@@ -140,14 +133,14 @@ class EqOdooConnection(odoo_connection.OdooConnection):
         Returns:
             True if the operation was successful, False otherwise.
         """
-        STOCK_WAREHOUSE_ORDERPOINT = self.odoo.env['stock.warehouse.orderpoint']
-        orderpoint_id = STOCK_WAREHOUSE_ORDERPOINT.search([('product_id', '=', product_id)])
+        STOCK_WAREHOUSE_ORDERPOINT = self.odoo.env["stock.warehouse.orderpoint"]
+        orderpoint_id = STOCK_WAREHOUSE_ORDERPOINT.search([("product_id", "=", product_id)])
         if not orderpoint_id:
             orderpoint_data = {
-                'product_id': product_id,
-                'product_min_qty': 0,
-                'product_max_qty': 0,
-                'qty_multiple': 1,
+                "product_id": product_id,
+                "product_min_qty": 0,
+                "product_max_qty": 0,
+                "qty_multiple": 1,
             }
             STOCK_WAREHOUSE_ORDERPOINT.create(orderpoint_data)
             return True
@@ -180,15 +173,11 @@ class EqOdooConnection(odoo_connection.OdooConnection):
         if allowed_directory is not None:
             allowed = pathlib.Path(allowed_directory).resolve()
             if not str(path).startswith(str(allowed) + os.sep) and path != allowed:
-                raise ValueError(
-                    f"Access denied: '{path}' is outside allowed directory '{allowed}'"
-                )
+                raise ValueError(f"Access denied: '{path}' is outside allowed directory '{allowed}'")
 
         file_size = path.stat().st_size
         if file_size > max_size_mb * 1024 * 1024:
-            raise ValueError(
-                f"File size ({file_size / (1024*1024):.1f}MB) exceeds {max_size_mb}MB limit"
-            )
+            raise ValueError(f"File size ({file_size / (1024*1024):.1f}MB) exceeds {max_size_mb}MB limit")
 
         with open(path, "rb") as f:
             return str(base64.b64encode(f.read()).decode("utf-8"))
@@ -203,10 +192,10 @@ class EqOdooConnection(odoo_connection.OdooConnection):
             The ID of the unit of measure if found, 1 (default) otherwise.
         """
         if self.odoo_version in [10, 11, 12]:
-            PRODUCT_UOM = self.odoo.env['product.uom']
+            PRODUCT_UOM = self.odoo.env["product.uom"]
         else:
-            PRODUCT_UOM = self.odoo.env['uom.uom']
-        uom_id = PRODUCT_UOM.search([('name', '=', uom)])
+            PRODUCT_UOM = self.odoo.env["uom.uom"]
+        uom_id = PRODUCT_UOM.search([("name", "=", uom)])
         return uom_id[0] if uom_id else 1
 
     def string_contains_numbers(self, source: str) -> bool:
@@ -266,13 +255,10 @@ class EqOdooConnection(odoo_connection.OdooConnection):
         Returns:
             The ID of the company if found, None otherwise.
         """
-        RES_PARTNER = self.odoo.env['res.partner']
-        record = RES_PARTNER.search([
-            ('name', 'like', company_name),
-            ('zip', '=', zip_code),
-            ('city', '=', city),
-            ('is_company', '=', True)
-        ])
+        RES_PARTNER = self.odoo.env["res.partner"]
+        record = RES_PARTNER.search(
+            [("name", "like", company_name), ("zip", "=", zip_code), ("city", "=", city), ("is_company", "=", True)]
+        )
         return record[0] if record else None
 
     # ==================== NEW METHODS ====================
@@ -286,11 +272,11 @@ class EqOdooConnection(odoo_connection.OdooConnection):
         Returns:
             The ID of the country if found, None otherwise.
         """
-        RES_COUNTRY = self.odoo.env['res.country']
-        country_ids = RES_COUNTRY.search([('name', '=', country_name)])
+        RES_COUNTRY = self.odoo.env["res.country"]
+        country_ids = RES_COUNTRY.search([("name", "=", country_name)])
         if not country_ids:
             # Try case-insensitive search
-            country_ids = RES_COUNTRY.search([('name', 'ilike', country_name)])
+            country_ids = RES_COUNTRY.search([("name", "ilike", country_name)])
         return country_ids[0] if country_ids else None
 
     def get_country_id_by_code(self, country_code: str) -> int | None:
@@ -302,8 +288,8 @@ class EqOdooConnection(odoo_connection.OdooConnection):
         Returns:
             The ID of the country if found, None otherwise.
         """
-        RES_COUNTRY = self.odoo.env['res.country']
-        country_ids = RES_COUNTRY.search([('code', '=', country_code.upper())])
+        RES_COUNTRY = self.odoo.env["res.country"]
+        country_ids = RES_COUNTRY.search([("code", "=", country_code.upper())])
         return country_ids[0] if country_ids else None
 
     def create_partner(
@@ -316,7 +302,7 @@ class EqOdooConnection(odoo_connection.OdooConnection):
         city: str | None = None,
         zip_code: str | None = None,
         country_id: int | None = None,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> int:
         """Creates a new partner (contact or company) in Odoo.
 
@@ -334,25 +320,25 @@ class EqOdooConnection(odoo_connection.OdooConnection):
         Returns:
             The ID of the newly created partner.
         """
-        RES_PARTNER = self.odoo.env['res.partner']
+        RES_PARTNER = self.odoo.env["res.partner"]
 
         partner_data = {
-            'name': name,
-            'is_company': is_company,
+            "name": name,
+            "is_company": is_company,
         }
 
         if email:
-            partner_data['email'] = email
+            partner_data["email"] = email
         if phone:
-            partner_data['phone'] = phone
+            partner_data["phone"] = phone
         if street:
-            partner_data['street'] = street
+            partner_data["street"] = street
         if city:
-            partner_data['city'] = city
+            partner_data["city"] = city
         if zip_code:
-            partner_data['zip'] = zip_code
+            partner_data["zip"] = zip_code
         if country_id:
-            partner_data['country_id'] = country_id
+            partner_data["country_id"] = country_id
 
         # Add any additional fields
         partner_data.update(kwargs)
@@ -368,8 +354,8 @@ class EqOdooConnection(odoo_connection.OdooConnection):
         Returns:
             The ID of the product if found, None otherwise.
         """
-        PRODUCT_PRODUCT = self.odoo.env['product.product']
-        product_ids = PRODUCT_PRODUCT.search([('default_code', '=', default_code)])
+        PRODUCT_PRODUCT = self.odoo.env["product.product"]
+        product_ids = PRODUCT_PRODUCT.search([("default_code", "=", default_code)])
         return product_ids[0] if product_ids else None
 
     def get_product_template_by_ref(self, default_code: str) -> int | None:
@@ -381,8 +367,8 @@ class EqOdooConnection(odoo_connection.OdooConnection):
         Returns:
             The ID of the product template if found, None otherwise.
         """
-        PRODUCT_TEMPLATE = self.odoo.env['product.template']
-        template_ids = PRODUCT_TEMPLATE.search([('default_code', '=', default_code)])
+        PRODUCT_TEMPLATE = self.odoo.env["product.template"]
+        template_ids = PRODUCT_TEMPLATE.search([("default_code", "=", default_code)])
         return template_ids[0] if template_ids else None
 
     def execute_method(
@@ -391,7 +377,7 @@ class EqOdooConnection(odoo_connection.OdooConnection):
         method: str,
         record_ids: list[int] | None = None,
         args: list[Any] | None = None,
-        kwargs: dict[str, Any] | None = None
+        kwargs: dict[str, Any] | None = None,
     ) -> Any:
         """Executes a method on an Odoo model via RPC.
 
@@ -410,7 +396,7 @@ class EqOdooConnection(odoo_connection.OdooConnection):
         Raises:
             ValueError: If the method name starts with '_' (private/magic methods).
         """
-        if method.startswith('_'):
+        if method.startswith("_"):
             raise ValueError(f"Private method '{method}' not allowed")
 
         Model = self.odoo.env[model]
@@ -442,7 +428,7 @@ class EqOdooConnection(odoo_connection.OdooConnection):
         fields: list[str] | None = None,
         limit: int | None = None,
         offset: int = 0,
-        order: str | None = None
+        order: str | None = None,
     ) -> list[dict[str, Any]]:
         """Searches for records and returns specified fields.
 
@@ -462,7 +448,7 @@ class EqOdooConnection(odoo_connection.OdooConnection):
         Model = self.odoo.env[model]
 
         search_domain = domain or []
-        search_fields = fields or ['id', 'name']
+        search_fields = fields or ["id", "name"]
 
         record_ids = Model.search(search_domain, limit=limit, offset=offset, order=order)
 
@@ -470,4 +456,3 @@ class EqOdooConnection(odoo_connection.OdooConnection):
             return []
 
         return Model.read(record_ids, search_fields)
-

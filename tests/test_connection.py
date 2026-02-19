@@ -57,6 +57,23 @@ class TestExceptions:
         with pytest.raises(OdooConnectionError):
             raise OdooAuthError("Auth error")
 
+    def test_rpc_error_hierarchy(self):
+        """Test that RPC exceptions have correct inheritance."""
+        from odoorpc_toolbox import Error, InternalError, RPCError
+
+        assert issubclass(RPCError, Error)
+        assert issubclass(InternalError, Error)
+        assert issubclass(Error, Exception)
+
+    def test_rpc_error_info_attribute(self):
+        """Test that RPCError stores error info."""
+        from odoorpc_toolbox import RPCError
+
+        error_info = {"message": "Access Denied", "code": 403}
+        exc = RPCError("Access Denied", info=error_info)
+        assert str(exc) == "Access Denied"
+        assert exc.info == error_info
+
 
 class TestOdooConnectionInit:
     """Tests for OdooConnection initialization."""
@@ -79,7 +96,7 @@ class TestOdooConnectionInit:
 
         assert "yaml" in str(exc_info.value).lower() or "parsing" in str(exc_info.value).lower()
 
-    @patch('odoorpc_toolbox.odoo_connection.odoorpc.ODOO')
+    @patch("odoorpc_toolbox.odoo_connection.ODOO")
     def test_successful_connection(self, mock_odoo, valid_config_yaml):
         """Test successful connection with valid config."""
         # Setup mock
@@ -97,7 +114,7 @@ class TestOdooConnectionInit:
         assert conn.odoo_version == 16
         mock_instance.login.assert_called_once()
 
-    @patch('odoorpc_toolbox.odoo_connection.odoorpc.ODOO')
+    @patch("odoorpc_toolbox.odoo_connection.ODOO")
     def test_connection_url_error(self, mock_odoo, valid_config_yaml):
         """Test that URL errors raise OdooConnectionError."""
         from odoorpc_toolbox import OdooConnection, OdooConnectionError
@@ -109,16 +126,15 @@ class TestOdooConnectionInit:
 
         assert "connection" in str(exc_info.value).lower()
 
-    @patch('odoorpc_toolbox.odoo_connection.odoorpc.ODOO')
+    @patch("odoorpc_toolbox.odoo_connection.ODOO")
     def test_auth_error(self, mock_odoo, valid_config_yaml):
         """Test that authentication errors raise OdooAuthError."""
-        import odoorpc.error
-
         from odoorpc_toolbox import OdooAuthError, OdooConnection
+        from odoorpc_toolbox.exceptions import RPCError
 
         mock_instance = MagicMock()
         mock_instance.version = "16.0"
-        mock_instance.login.side_effect = odoorpc.error.RPCError("Invalid credentials")
+        mock_instance.login.side_effect = RPCError("Invalid credentials")
         mock_odoo.return_value = mock_instance
 
         with pytest.raises(OdooAuthError) as exc_info:
@@ -130,7 +146,7 @@ class TestOdooConnectionInit:
 class TestOdooConnectionConfig:
     """Tests for configuration parsing."""
 
-    @patch('odoorpc_toolbox.odoo_connection.odoorpc.ODOO')
+    @patch("odoorpc_toolbox.odoo_connection.ODOO")
     def test_https_url_handling(self, mock_odoo, valid_config_yaml):
         """Test that HTTPS URLs are handled correctly."""
         mock_instance = MagicMock()
@@ -147,9 +163,9 @@ class TestOdooConnectionConfig:
         call_args = mock_odoo.call_args
         assert call_args is not None
         # Protocol should be jsonrpc+ssl for https
-        assert call_args[1]['protocol'] == 'jsonrpc+ssl'
+        assert call_args[1]["protocol"] == "jsonrpc+ssl"
 
-    @patch('odoorpc_toolbox.odoo_connection.odoorpc.ODOO')
+    @patch("odoorpc_toolbox.odoo_connection.ODOO")
     def test_context_settings(self, mock_odoo, valid_config_yaml):
         """Test that context settings are applied correctly."""
         mock_instance = MagicMock()
@@ -163,8 +179,8 @@ class TestOdooConnectionConfig:
         OdooConnection(valid_config_yaml)
 
         # Check that auto_commit is set
-        assert mock_instance.config['auto_commit'] is True
+        assert mock_instance.config["auto_commit"] is True
         # Check that active_test is False (show inactive records)
-        assert mock_instance.env.context['active_test'] is False
+        assert mock_instance.env.context["active_test"] is False
         # Check that tracking is disabled
-        assert mock_instance.env.context['tracking_disable'] is True
+        assert mock_instance.env.context["tracking_disable"] is True

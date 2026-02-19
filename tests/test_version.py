@@ -8,7 +8,7 @@ def test_version_format():
     from odoorpc_toolbox import __version__
 
     # Should match X.Y.Z format
-    pattern = r'^\d+\.\d+\.\d+$'
+    pattern = r"^\d+\.\d+\.\d+$"
     assert re.match(pattern, __version__), f"Version '{__version__}' does not match X.Y.Z format"
 
 

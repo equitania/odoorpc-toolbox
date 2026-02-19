@@ -12,38 +12,38 @@ class TestGetAvailableMethods:
 
         schema = get_available_methods()
 
-        assert 'schema_version' in schema
-        assert 'package' in schema
-        assert 'version' in schema
-        assert 'methods' in schema
+        assert "schema_version" in schema
+        assert "package" in schema
+        assert "version" in schema
+        assert "methods" in schema
 
     def test_schema_version(self):
         """Test that schema version is 1.0."""
         from odoorpc_toolbox import get_available_methods
 
         schema = get_available_methods()
-        assert schema['schema_version'] == '1.0'
+        assert schema["schema_version"] == "1.0"
 
     def test_package_name(self):
         """Test that package name is correct."""
         from odoorpc_toolbox import get_available_methods
 
         schema = get_available_methods()
-        assert schema['package'] == 'odoorpc-toolbox'
+        assert schema["package"] == "odoorpc-toolbox"
 
     def test_methods_list(self):
         """Test that methods list contains expected methods."""
         from odoorpc_toolbox import get_available_methods
 
         schema = get_available_methods()
-        method_names = [m['name'] for m in schema['methods']]
+        method_names = [m["name"] for m in schema["methods"]]
 
         # Check for some expected methods
-        assert 'get_state_id' in method_names
-        assert 'get_country_id' in method_names
-        assert 'create_partner' in method_names
-        assert 'execute_method' in method_names
-        assert 'search_read' in method_names
+        assert "get_state_id" in method_names
+        assert "get_country_id" in method_names
+        assert "create_partner" in method_names
+        assert "execute_method" in method_names
+        assert "search_read" in method_names
 
     def test_method_has_required_fields(self):
         """Test that each method has required schema fields."""
@@ -51,11 +51,11 @@ class TestGetAvailableMethods:
 
         schema = get_available_methods()
 
-        for method in schema['methods']:
-            assert 'name' in method
-            assert 'description' in method
-            assert 'parameters' in method
-            assert 'returns' in method
+        for method in schema["methods"]:
+            assert "name" in method
+            assert "description" in method
+            assert "parameters" in method
+            assert "returns" in method
 
     def test_parameters_structure(self):
         """Test that parameters follow JSON Schema structure."""
@@ -63,11 +63,11 @@ class TestGetAvailableMethods:
 
         schema = get_available_methods()
 
-        for method in schema['methods']:
-            params = method['parameters']
-            assert params['type'] == 'object'
-            assert 'properties' in params
-            assert 'required' in params
+        for method in schema["methods"]:
+            params = method["parameters"]
+            assert params["type"] == "object"
+            assert "properties" in params
+            assert "required" in params
 
     def test_json_serializable(self):
         """Test that schema is JSON serializable."""
@@ -91,55 +91,55 @@ class TestGetMethodSchema:
         """Test getting schema for an existing method."""
         from odoorpc_toolbox import get_method_schema
 
-        schema = get_method_schema('get_state_id')
+        schema = get_method_schema("get_state_id")
 
         assert schema is not None
-        assert schema['name'] == 'get_state_id'
-        assert 'country_id' in schema['parameters']['properties']
-        assert 'state_name' in schema['parameters']['properties']
+        assert schema["name"] == "get_state_id"
+        assert "country_id" in schema["parameters"]["properties"]
+        assert "state_name" in schema["parameters"]["properties"]
 
     def test_nonexistent_method(self):
         """Test getting schema for a non-existent method."""
         from odoorpc_toolbox import get_method_schema
 
-        schema = get_method_schema('nonexistent_method')
+        schema = get_method_schema("nonexistent_method")
         assert schema is None
 
     def test_private_method(self):
         """Test that private methods return None."""
         from odoorpc_toolbox import get_method_schema
 
-        schema = get_method_schema('_private_method')
+        schema = get_method_schema("_private_method")
         assert schema is None
 
     def test_parameter_types(self):
         """Test that parameter types are correctly mapped."""
         from odoorpc_toolbox import get_method_schema
 
-        schema = get_method_schema('get_state_id')
+        schema = get_method_schema("get_state_id")
 
-        props = schema['parameters']['properties']
-        assert props['country_id']['type'] == 'integer'
-        assert props['state_name']['type'] == 'string'
+        props = schema["parameters"]["properties"]
+        assert props["country_id"]["type"] == "integer"
+        assert props["state_name"]["type"] == "string"
 
     def test_return_type(self):
         """Test that return type is correctly mapped."""
         from odoorpc_toolbox import get_method_schema
 
-        schema = get_method_schema('get_state_id')
+        schema = get_method_schema("get_state_id")
 
-        assert schema['returns']['type'] == 'integer'
-        assert schema['returns'].get('nullable') is True
+        assert schema["returns"]["type"] == "integer"
+        assert schema["returns"].get("nullable") is True
 
     def test_required_parameters(self):
         """Test that required parameters are correctly identified."""
         from odoorpc_toolbox import get_method_schema
 
-        schema = get_method_schema('get_state_id')
+        schema = get_method_schema("get_state_id")
 
-        required = schema['parameters']['required']
-        assert 'country_id' in required
-        assert 'state_name' in required
+        required = schema["parameters"]["required"]
+        assert "country_id" in required
+        assert "state_name" in required
 
 
 class TestNewMethods:
@@ -149,46 +149,46 @@ class TestNewMethods:
         """Test get_country_id method schema."""
         from odoorpc_toolbox import get_method_schema
 
-        schema = get_method_schema('get_country_id')
+        schema = get_method_schema("get_country_id")
 
         assert schema is not None
-        assert 'country_name' in schema['parameters']['properties']
-        assert schema['parameters']['properties']['country_name']['type'] == 'string'
+        assert "country_name" in schema["parameters"]["properties"]
+        assert schema["parameters"]["properties"]["country_name"]["type"] == "string"
 
     def test_create_partner_schema(self):
         """Test create_partner method schema."""
         from odoorpc_toolbox import get_method_schema
 
-        schema = get_method_schema('create_partner')
+        schema = get_method_schema("create_partner")
 
         assert schema is not None
-        props = schema['parameters']['properties']
-        assert 'name' in props
-        assert 'is_company' in props
-        assert 'email' in props
-        assert props['is_company']['type'] == 'boolean'
+        props = schema["parameters"]["properties"]
+        assert "name" in props
+        assert "is_company" in props
+        assert "email" in props
+        assert props["is_company"]["type"] == "boolean"
 
     def test_execute_method_schema(self):
         """Test execute_method method schema."""
         from odoorpc_toolbox import get_method_schema
 
-        schema = get_method_schema('execute_method')
+        schema = get_method_schema("execute_method")
 
         assert schema is not None
-        props = schema['parameters']['properties']
-        assert 'model' in props
-        assert 'method' in props
-        assert props['model']['type'] == 'string'
+        props = schema["parameters"]["properties"]
+        assert "model" in props
+        assert "method" in props
+        assert props["model"]["type"] == "string"
 
     def test_search_read_schema(self):
         """Test search_read method schema."""
         from odoorpc_toolbox import get_method_schema
 
-        schema = get_method_schema('search_read')
+        schema = get_method_schema("search_read")
 
         assert schema is not None
-        props = schema['parameters']['properties']
-        assert 'model' in props
-        assert 'domain' in props
-        assert 'fields' in props
-        assert 'limit' in props
+        props = schema["parameters"]["properties"]
+        assert "model" in props
+        assert "domain" in props
+        assert "fields" in props
+        assert "limit" in props

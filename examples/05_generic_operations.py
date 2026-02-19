@@ -15,7 +15,7 @@ def main():
     """Demonstrate generic operations."""
 
     # Establish connection
-    conn = EqOdooConnection('odoo_config.yaml')
+    conn = EqOdooConnection("odoo_config.yaml")
     print(f"Connected to Odoo {conn.odoo_version}")
 
     # =========================================
@@ -25,30 +25,30 @@ def main():
 
     # Get all companies
     companies = conn.search_read(
-        model='res.partner',
-        domain=[('is_company', '=', True)],
-        fields=['name', 'email', 'city', 'country_id'],
+        model="res.partner",
+        domain=[("is_company", "=", True)],
+        fields=["name", "email", "city", "country_id"],
         limit=10,
-        order='name asc'
+        order="name asc",
     )
-    print(f"\nTop 10 companies:")
+    print("\nTop 10 companies:")
     for company in companies:
-        country = company.get('country_id', [None, 'N/A'])
-        country_name = country[1] if isinstance(country, list) else 'N/A'
+        country = company.get("country_id", [None, "N/A"])
+        country_name = country[1] if isinstance(country, list) else "N/A"
         print(f"  - {company['name']} ({company.get('city', 'N/A')}, {country_name})")
 
     # Get recent sales orders
     orders = conn.search_read(
-        model='sale.order',
-        domain=[('state', 'in', ['sale', 'done'])],
-        fields=['name', 'partner_id', 'amount_total', 'date_order'],
+        model="sale.order",
+        domain=[("state", "in", ["sale", "done"])],
+        fields=["name", "partner_id", "amount_total", "date_order"],
         limit=5,
-        order='date_order desc'
+        order="date_order desc",
     )
-    print(f"\nRecent 5 confirmed orders:")
+    print("\nRecent 5 confirmed orders:")
     for order in orders:
-        partner = order.get('partner_id', [None, 'Unknown'])
-        partner_name = partner[1] if isinstance(partner, list) else 'Unknown'
+        partner = order.get("partner_id", [None, "Unknown"])
+        partner_name = partner[1] if isinstance(partner, list) else "Unknown"
         print(f"  - {order['name']}: {partner_name} - {order['amount_total']:.2f}")
 
     # =========================================
@@ -58,24 +58,19 @@ def main():
 
     # Call name_search on res.partner
     result = conn.execute_method(
-        model='res.partner',
-        method='name_search',
-        args=['Test'],  # Search for partners containing 'Test'
-        kwargs={'limit': 5}
+        model="res.partner",
+        method="name_search",
+        args=["Test"],  # Search for partners containing 'Test'
+        kwargs={"limit": 5},
     )
-    print(f"\nname_search results for 'Test':")
+    print("\nname_search results for 'Test':")
     for partner_id, partner_name in result:
         print(f"  - [{partner_id}] {partner_name}")
 
     # Call a method on specific records
     partner_ids = [1, 2, 3]  # Admin and first partners
-    result = conn.execute_method(
-        model='res.partner',
-        method='read',
-        record_ids=partner_ids,
-        args=[['name', 'email']]
-    )
-    print(f"\nReading specific partners:")
+    result = conn.execute_method(model="res.partner", method="read", record_ids=partner_ids, args=[["name", "email"]])
+    print("\nReading specific partners:")
     for partner in result:
         print(f"  - {partner['name']}: {partner.get('email', 'N/A')}")
 
@@ -85,11 +80,11 @@ def main():
     print("\n--- Sequence Operations ---")
 
     # Get next sequence number for sales orders
-    next_so_number = conn.get_ir_sequence_number_next_actual('sale.order')
+    next_so_number = conn.get_ir_sequence_number_next_actual("sale.order")
     print(f"Next SO number: {next_so_number}")
 
     # Get next sequence number for invoices
-    next_inv_number = conn.get_ir_sequence_number_next_actual('account.move')
+    next_inv_number = conn.get_ir_sequence_number_next_actual("account.move")
     print(f"Next Invoice number: {next_inv_number}")
 
     # =========================================
@@ -110,24 +105,19 @@ def main():
 
     # Count records in various models
     models_to_count = [
-        ('res.partner', [('is_company', '=', True)], 'Companies'),
-        ('res.partner', [('is_company', '=', False)], 'Contacts'),
-        ('product.product', [], 'Products'),
-        ('sale.order', [('state', '=', 'sale')], 'Confirmed Orders'),
+        ("res.partner", [("is_company", "=", True)], "Companies"),
+        ("res.partner", [("is_company", "=", False)], "Contacts"),
+        ("product.product", [], "Products"),
+        ("sale.order", [("state", "=", "sale")], "Confirmed Orders"),
     ]
 
     for model, domain, label in models_to_count:
         try:
-            records = conn.search_read(
-                model=model,
-                domain=domain,
-                fields=['id'],
-                limit=None
-            )
+            records = conn.search_read(model=model, domain=domain, fields=["id"], limit=None)
             print(f"  {label}: {len(records)}")
         except Exception as e:
             print(f"  {label}: Error - {e}")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

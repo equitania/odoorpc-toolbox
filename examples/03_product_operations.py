@@ -15,7 +15,7 @@ def main():
     """Demonstrate product operations."""
 
     # Establish connection
-    conn = EqOdooConnection('odoo_config.yaml')
+    conn = EqOdooConnection("odoo_config.yaml")
     print(f"Connected to Odoo {conn.odoo_version}")
 
     # =========================================
@@ -73,18 +73,20 @@ def main():
 
     # Get first 5 products with specific fields
     products = conn.search_read(
-        model='product.product',
-        domain=[('sale_ok', '=', True)],
-        fields=['name', 'default_code', 'list_price', 'qty_available'],
+        model="product.product",
+        domain=[("sale_ok", "=", True)],
+        fields=["name", "default_code", "list_price", "qty_available"],
         limit=5,
-        order='name asc'
+        order="name asc",
     )
 
     print(f"Found {len(products)} saleable products:")
     for product in products:
-        print(f"  - {product.get('name')} "
-              f"[{product.get('default_code', 'N/A')}] "
-              f"Price: {product.get('list_price', 0):.2f}")
+        print(
+            f"  - {product.get('name')} "
+            f"[{product.get('default_code', 'N/A')}] "
+            f"Price: {product.get('list_price', 0):.2f}"
+        )
 
     # =========================================
     # 5. Product images
@@ -100,5 +102,5 @@ def main():
         print(f"Image not found at: {image_path}")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

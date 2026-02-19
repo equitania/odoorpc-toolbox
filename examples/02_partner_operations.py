@@ -15,7 +15,7 @@ def main():
     """Demonstrate partner operations."""
 
     # Establish connection
-    conn = EqOdooConnection('odoo_config.yaml')
+    conn = EqOdooConnection("odoo_config.yaml")
     print(f"Connected to Odoo {conn.odoo_version}")
 
     # =========================================
@@ -36,11 +36,7 @@ def main():
     # =========================================
     print("\n--- Checking Company Existence ---")
 
-    company_id = conn.check_if_company_exists(
-        company_name="Musterfirma",
-        zip_code="12345",
-        city="Berlin"
-    )
+    company_id = conn.check_if_company_exists(company_name="Musterfirma", zip_code="12345", city="Berlin")
     if company_id:
         print(f"Company found with ID: {company_id}")
     else:
@@ -67,7 +63,7 @@ def main():
         country_id=germany_id,
         # Additional fields via kwargs
         website="https://www.testcompany.de",
-        vat="DE123456789"
+        vat="DE123456789",
     )
     print(f"Created company with ID: {new_company_id}")
 
@@ -77,7 +73,7 @@ def main():
         is_company=False,
         email="max@testcompany.de",
         phone="+49 123 456790",
-        parent_id=new_company_id  # Link to company
+        parent_id=new_company_id,  # Link to company
     )
     print(f"Created contact with ID: {new_contact_id}")
 
@@ -130,5 +126,5 @@ def main():
     print(f"British: Street='{street}', House='{house_no}'")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

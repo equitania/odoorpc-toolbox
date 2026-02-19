@@ -9,12 +9,8 @@ Usage:
 """
 
 import json
-from odoorpc_toolbox import (
-    get_available_methods,
-    get_method_schema,
-    print_available_methods,
-    __version__
-)
+
+from odoorpc_toolbox import __version__, get_available_methods, get_method_schema, print_available_methods
 
 
 def main():
@@ -36,7 +32,7 @@ def main():
     print(f"Total methods: {len(schema['methods'])}")
 
     print("\nMethod list:")
-    for method in schema['methods']:
+    for method in schema["methods"]:
         print(f"  - {method['name']}")
 
     # =========================================
@@ -44,7 +40,7 @@ def main():
     # =========================================
     print("\n--- Method Schema: create_partner ---")
 
-    method_schema = get_method_schema('create_partner')
+    method_schema = get_method_schema("create_partner")
     print(json.dumps(method_schema, indent=2))
 
     # =========================================
@@ -52,14 +48,14 @@ def main():
     # =========================================
     print("\n--- Method Schema: search_read ---")
 
-    method_schema = get_method_schema('search_read')
+    method_schema = get_method_schema("search_read")
     print(json.dumps(method_schema, indent=2))
 
     # =========================================
     # 4. Human-readable output
     # =========================================
     print("\n--- Human-Readable Format ---")
-    print_available_methods(format='text')
+    print_available_methods(format="text")
 
     # =========================================
     # 5. JSON output (for MCP servers)
@@ -76,22 +72,19 @@ def main():
     schema = get_available_methods()
 
     # Partner methods
-    partner_methods = [m for m in schema['methods']
-                       if 'partner' in m['name'].lower()]
+    partner_methods = [m for m in schema["methods"] if "partner" in m["name"].lower()]
     print(f"\nPartner methods ({len(partner_methods)}):")
     for m in partner_methods:
         print(f"  - {m['name']}: {m['description'][:50]}...")
 
     # Product methods
-    product_methods = [m for m in schema['methods']
-                       if 'product' in m['name'].lower()]
+    product_methods = [m for m in schema["methods"] if "product" in m["name"].lower()]
     print(f"\nProduct methods ({len(product_methods)}):")
     for m in product_methods:
         print(f"  - {m['name']}: {m['description'][:50]}...")
 
     # Country/State methods
-    location_methods = [m for m in schema['methods']
-                        if 'country' in m['name'].lower() or 'state' in m['name'].lower()]
+    location_methods = [m for m in schema["methods"] if "country" in m["name"].lower() or "state" in m["name"].lower()]
     print(f"\nLocation methods ({len(location_methods)}):")
     for m in location_methods:
         print(f"  - {m['name']}: {m['description'][:50]}...")
@@ -101,11 +94,11 @@ def main():
     # =========================================
     print("\n--- Save Schema to File ---")
 
-    output_file = 'odoorpc_toolbox_schema.json'
-    with open(output_file, 'w', encoding='utf-8') as f:
+    output_file = "odoorpc_toolbox_schema.json"
+    with open(output_file, "w", encoding="utf-8") as f:
         json.dump(schema, f, indent=2)
     print(f"Schema saved to: {output_file}")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
