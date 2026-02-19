@@ -16,10 +16,10 @@ Example:
 
 import inspect
 import re
-from typing import Any, Dict, List, Optional, get_type_hints
+import types
+from typing import Any, get_type_hints
 
 from ._version import __version__
-
 
 # Type mapping for JSON Schema
 PYTHON_TO_JSON_TYPE = {
@@ -40,7 +40,7 @@ PYTHON_TO_JSON_TYPE = {
 }
 
 
-def _parse_docstring(docstring: Optional[str]) -> Dict[str, Any]:
+def _parse_docstring(docstring: str | None) -> dict[str, Any]:
     """Parse Google-style docstring into structured data.
 
     Args:
@@ -96,7 +96,7 @@ def _parse_docstring(docstring: Optional[str]) -> Dict[str, Any]:
     return result
 
 
-def _type_to_json_schema(type_hint: Any) -> Dict[str, Any]:
+def _type_to_json_schema(type_hint: Any) -> dict[str, Any]:
     """Convert Python type hint to JSON Schema type.
 
     Args:
@@ -107,6 +107,15 @@ def _type_to_json_schema(type_hint: Any) -> Dict[str, Any]:
     """
     if type_hint is None:
         return {'type': 'null'}
+
+    # Handle PEP 604 union types (X | None) from Python 3.10+
+    if isinstance(type_hint, types.UnionType):
+        args = type_hint.__args__
+        non_none = [a for a in args if a is not type(None)]
+        if type(None) in args and len(non_none) == 1:
+            inner_schema = _type_to_json_schema(non_none[0])
+            inner_schema['nullable'] = True
+            return inner_schema
 
     type_str = str(type_hint)
 
@@ -140,7 +149,7 @@ def _type_to_json_schema(type_hint: Any) -> Dict[str, Any]:
     return {'type': json_type}
 
 
-def get_method_schema(method_name: str, cls: type = None) -> Optional[Dict[str, Any]]:
+def get_method_schema(method_name: str, cls: type = None) -> dict[str, Any] | None:
     """Get MCP-compatible JSON Schema for a specific method.
 
     Args:
@@ -168,13 +177,13 @@ def get_method_schema(method_name: str, cls: type = None) -> Optional[Dict[str, 
     # Get type hints
     try:
         hints = get_type_hints(method)
-    except Exception:
+    except (TypeError, NameError, AttributeError):
         hints = {}
 
     # Get signature
     try:
         sig = inspect.signature(method)
-    except Exception:
+    except (ValueError, TypeError):
         return None
 
     # Parse docstring
@@ -225,7 +234,7 @@ def get_method_schema(method_name: str, cls: type = None) -> Optional[Dict[str, 
     }
 
 
-def get_available_methods(cls: type = None, include_inherited: bool = False) -> Dict[str, Any]:
+def get_available_methods(cls: type = None, include_inherited: bool = False) -> dict[str, Any]:
     """Get all available methods with MCP-compatible schema.
 
     This function returns a complete schema of all available methods

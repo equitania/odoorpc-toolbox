@@ -1,7 +1,6 @@
 """Tests for MCP-compatible introspection module."""
 
 import json
-import pytest
 
 
 class TestGetAvailableMethods:

@@ -1,8 +1,9 @@
 """Pytest configuration and fixtures for odoorpc-toolbox tests."""
 
-import pytest
-import tempfile
 import os
+import tempfile
+
+import pytest
 
 
 @pytest.fixture

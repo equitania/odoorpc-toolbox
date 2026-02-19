@@ -9,11 +9,11 @@ Typical usage example:
     connection.odoo_connect()
 """
 
+import logging
+import urllib
+
 import odoorpc
 import yaml
-import urllib
-from typing import Optional
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +34,7 @@ class OdooAuthError(OdooConnectionError):
 
 class OdooConnection:
     """Base class for establishing and managing Odoo server connections.
-    
+
     Attributes:
         odoo_address: Server URL address.
         odoo_port: Server port number.
@@ -57,7 +57,7 @@ class OdooConnection:
             yaml.YAMLError: If the YAML file is malformed.
         """
         try:
-            with open(eq_yaml_path, "r", encoding="utf-8") as stream:
+            with open(eq_yaml_path, encoding="utf-8") as stream:
                 data = yaml.safe_load(stream)
             connection_data = data['Server']
             self.odoo_address = connection_data.get('url', '0.0.0.0')

@@ -8,8 +8,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - **Author**: Equitania Software GmbH
 - **License**: GNU Affero General Public License v3
-- **Python**: >= 3.8
-- **Current Version**: 0.0.8
+- **Python**: >= 3.10
+- **Current Version**: 0.4.0
 
 ## Development Commands
 
@@ -18,11 +18,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 uv venv && source .venv/bin/activate.fish  # Fish shell
 # Or with aliases: venv+
 
-# Install dependencies
-uv pip install OdooRPC>=0.10.1 PyYaml>=5.4.1
-
-# Install package in editable mode
-uv pip install -e .
+# Install package in editable mode with dev dependencies
+uv pip install -e ".[dev]"
 
 # Build package for PyPI
 uv build

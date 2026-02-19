@@ -1,8 +1,9 @@
 """Tests for helper functions in base_helper.py."""
 
-import pytest
-from unittest.mock import Mock, patch, MagicMock
 import base64
+from unittest.mock import patch
+
+import pytest
 
 
 class TestStringContainsNumbers:

@@ -1,8 +1,9 @@
 """Tests for OdooConnection class and exceptions."""
 
-import pytest
-from unittest.mock import Mock, patch, MagicMock
 import urllib.error
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 
 class TestExceptions:
@@ -11,9 +12,9 @@ class TestExceptions:
     def test_exception_hierarchy(self):
         """Test that exceptions have correct inheritance."""
         from odoorpc_toolbox import (
-            OdooConnectionError,
-            OdooConfigError,
             OdooAuthError,
+            OdooConfigError,
+            OdooConnectionError,
         )
 
         # OdooConnectionError should be base exception
@@ -26,9 +27,9 @@ class TestExceptions:
     def test_exception_instantiation(self):
         """Test that exceptions can be instantiated with messages."""
         from odoorpc_toolbox import (
-            OdooConnectionError,
-            OdooConfigError,
             OdooAuthError,
+            OdooConfigError,
+            OdooConnectionError,
         )
 
         exc1 = OdooConnectionError("Connection failed")
@@ -43,9 +44,9 @@ class TestExceptions:
     def test_exception_catching(self):
         """Test that exceptions can be caught by parent class."""
         from odoorpc_toolbox import (
-            OdooConnectionError,
-            OdooConfigError,
             OdooAuthError,
+            OdooConfigError,
+            OdooConnectionError,
         )
 
         # OdooConfigError should be catchable as OdooConnectionError
@@ -62,7 +63,7 @@ class TestOdooConnectionInit:
 
     def test_file_not_found(self):
         """Test that missing config file raises OdooConfigError."""
-        from odoorpc_toolbox import OdooConnection, OdooConfigError
+        from odoorpc_toolbox import OdooConfigError, OdooConnection
 
         with pytest.raises(OdooConfigError) as exc_info:
             OdooConnection("/nonexistent/config.yaml")
@@ -71,7 +72,7 @@ class TestOdooConnectionInit:
 
     def test_invalid_yaml(self, invalid_config_yaml):
         """Test that invalid YAML raises OdooConfigError."""
-        from odoorpc_toolbox import OdooConnection, OdooConfigError
+        from odoorpc_toolbox import OdooConfigError, OdooConnection
 
         with pytest.raises(OdooConfigError) as exc_info:
             OdooConnection(invalid_config_yaml)
@@ -112,7 +113,8 @@ class TestOdooConnectionInit:
     def test_auth_error(self, mock_odoo, valid_config_yaml):
         """Test that authentication errors raise OdooAuthError."""
         import odoorpc.error
-        from odoorpc_toolbox import OdooConnection, OdooAuthError
+
+        from odoorpc_toolbox import OdooAuthError, OdooConnection
 
         mock_instance = MagicMock()
         mock_instance.version = "16.0"
@@ -139,7 +141,7 @@ class TestOdooConnectionConfig:
 
         from odoorpc_toolbox import OdooConnection
 
-        conn = OdooConnection(valid_config_yaml)
+        OdooConnection(valid_config_yaml)
 
         # Should have called ODOO with correct parameters
         call_args = mock_odoo.call_args
@@ -158,7 +160,7 @@ class TestOdooConnectionConfig:
 
         from odoorpc_toolbox import OdooConnection
 
-        conn = OdooConnection(valid_config_yaml)
+        OdooConnection(valid_config_yaml)
 
         # Check that auto_commit is set
         assert mock_instance.config['auto_commit'] is True

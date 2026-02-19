@@ -1,6 +1,0 @@
-# OdooRPC Toolbox - Dependencies
-# Install with: pip install -r requirements.txt
-# Or with UV: uv pip install -r requirements.txt
-
-OdooRPC>=0.10.1
-PyYAML>=5.4.1

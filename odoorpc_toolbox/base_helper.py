@@ -9,20 +9,22 @@ Typical usage example:
     state_id = connection.get_state_id(country_id, state_name)
 """
 
-import os
 import base64
-from typing import Any, Dict, Optional, List, Tuple, Union
+import os
+import pathlib
+from typing import Any
+
 from . import odoo_connection
 
 
 class EqOdooConnection(odoo_connection.OdooConnection):
     """Extended Odoo connection class with helper functions.
-    
+
     This class inherits from OdooConnection and adds various helper methods
     for common Odoo operations.
     """
 
-    def get_state_id(self, country_id: int, state_name: str) -> Optional[int]:
+    def get_state_id(self, country_id: int, state_name: str) -> int | None:
         """Returns the state ID (Bundesland) for a given country and state name.
 
         Args:
@@ -41,9 +43,9 @@ class EqOdooConnection(odoo_connection.OdooConnection):
 
     def get_res_partner_id(
         self,
-        supplierno: Optional[str] = None,
-        customerno: Optional[str] = None
-    ) -> List[int]:
+        supplierno: str | None = None,
+        customerno: str | None = None
+    ) -> list[int]:
         """Retrieves partner IDs based on supplier or customer numbers.
 
         Args:
@@ -55,12 +57,12 @@ class EqOdooConnection(odoo_connection.OdooConnection):
         """
         RES_PARTNER = self.odoo.env['res.partner']
         domain = []
-        
+
         if supplierno:
             domain.append(('supplier_number', '=', supplierno))
         if customerno:
             domain.append(('customer_number', '=', customerno))
-            
+
         return RES_PARTNER.search(domain)
 
     def get_res_partner_category_id(self, category_name: str) -> int:
@@ -81,7 +83,7 @@ class EqOdooConnection(odoo_connection.OdooConnection):
         category_data = {'name': category_name}
         return RES_PARTNER_CATEGORY.create(category_data)
 
-    def get_ir_sequence_number_next_actual(self, code: str) -> Optional[int]:
+    def get_ir_sequence_number_next_actual(self, code: str) -> int | None:
         """Returns the next actual number in the sequence.
 
         Args:
@@ -97,7 +99,7 @@ class EqOdooConnection(odoo_connection.OdooConnection):
             return sequence["number_next_actual"]
         return None
 
-    def get_res_partner_title_id(self, title: str) -> Optional[int]:
+    def get_res_partner_title_id(self, title: str) -> int | None:
         """Returns the ID of the partner title.
 
         Args:
@@ -151,20 +153,45 @@ class EqOdooConnection(odoo_connection.OdooConnection):
             return True
         return False
 
-    def get_picture(self, picture_path: str) -> Optional[str]:
+    def get_picture(
+        self,
+        picture_path: str,
+        max_size_mb: int = 50,
+        allowed_directory: str | None = None,
+    ) -> str | None:
         """Loads a picture from a file path and encodes it in BASE64.
 
         Args:
             picture_path: The path to the picture file.
+            max_size_mb: Maximum allowed file size in megabytes (default: 50).
+            allowed_directory: If set, only files within this directory are allowed.
 
         Returns:
             The BASE64 encoded picture if the file exists, None otherwise.
+
+        Raises:
+            ValueError: If the file exceeds the size limit or is outside the allowed directory.
         """
-        if os.path.exists(picture_path):
-            with open(picture_path, "rb") as f:
-                img = f.read()
-                return str(base64.b64encode(img).decode("utf-8"))
-        return None
+        path = pathlib.Path(picture_path).resolve()
+
+        if not path.is_file():
+            return None
+
+        if allowed_directory is not None:
+            allowed = pathlib.Path(allowed_directory).resolve()
+            if not str(path).startswith(str(allowed) + os.sep) and path != allowed:
+                raise ValueError(
+                    f"Access denied: '{path}' is outside allowed directory '{allowed}'"
+                )
+
+        file_size = path.stat().st_size
+        if file_size > max_size_mb * 1024 * 1024:
+            raise ValueError(
+                f"File size ({file_size / (1024*1024):.1f}MB) exceeds {max_size_mb}MB limit"
+            )
+
+        with open(path, "rb") as f:
+            return str(base64.b64encode(f.read()).decode("utf-8"))
 
     def get_product_uom_id(self, uom: str) -> int:
         """Returns the ID of the product unit of measure.
@@ -193,7 +220,7 @@ class EqOdooConnection(odoo_connection.OdooConnection):
         """
         return any(i.isdigit() for i in source)
 
-    def extract_street_address_part(self, street_infos: str) -> Tuple[str, str]:
+    def extract_street_address_part(self, street_infos: str) -> tuple[str, str]:
         """Extracts street and house number from a string.
 
         Args:
@@ -228,7 +255,7 @@ class EqOdooConnection(odoo_connection.OdooConnection):
         house_no = house_no.strip()
         return street, house_no
 
-    def check_if_company_exists(self, company_name: str, zip_code: str, city: str) -> Optional[int]:
+    def check_if_company_exists(self, company_name: str, zip_code: str, city: str) -> int | None:
         """Checks if a company exists in the res_partner table.
 
         Args:
@@ -250,7 +277,7 @@ class EqOdooConnection(odoo_connection.OdooConnection):
 
     # ==================== NEW METHODS ====================
 
-    def get_country_id(self, country_name: str) -> Optional[int]:
+    def get_country_id(self, country_name: str) -> int | None:
         """Returns the country ID for a given country name.
 
         Args:
@@ -266,7 +293,7 @@ class EqOdooConnection(odoo_connection.OdooConnection):
             country_ids = RES_COUNTRY.search([('name', 'ilike', country_name)])
         return country_ids[0] if country_ids else None
 
-    def get_country_id_by_code(self, country_code: str) -> Optional[int]:
+    def get_country_id_by_code(self, country_code: str) -> int | None:
         """Returns the country ID for a given ISO country code.
 
         Args:
@@ -283,12 +310,12 @@ class EqOdooConnection(odoo_connection.OdooConnection):
         self,
         name: str,
         is_company: bool = False,
-        email: Optional[str] = None,
-        phone: Optional[str] = None,
-        street: Optional[str] = None,
-        city: Optional[str] = None,
-        zip_code: Optional[str] = None,
-        country_id: Optional[int] = None,
+        email: str | None = None,
+        phone: str | None = None,
+        street: str | None = None,
+        city: str | None = None,
+        zip_code: str | None = None,
+        country_id: int | None = None,
         **kwargs: Any
     ) -> int:
         """Creates a new partner (contact or company) in Odoo.
@@ -332,7 +359,7 @@ class EqOdooConnection(odoo_connection.OdooConnection):
 
         return RES_PARTNER.create(partner_data)
 
-    def get_product_by_ref(self, default_code: str) -> Optional[int]:
+    def get_product_by_ref(self, default_code: str) -> int | None:
         """Returns the product ID for a given internal reference (default_code).
 
         Args:
@@ -345,7 +372,7 @@ class EqOdooConnection(odoo_connection.OdooConnection):
         product_ids = PRODUCT_PRODUCT.search([('default_code', '=', default_code)])
         return product_ids[0] if product_ids else None
 
-    def get_product_template_by_ref(self, default_code: str) -> Optional[int]:
+    def get_product_template_by_ref(self, default_code: str) -> int | None:
         """Returns the product template ID for a given internal reference.
 
         Args:
@@ -362,9 +389,9 @@ class EqOdooConnection(odoo_connection.OdooConnection):
         self,
         model: str,
         method: str,
-        record_ids: Optional[List[int]] = None,
-        args: Optional[List[Any]] = None,
-        kwargs: Optional[Dict[str, Any]] = None
+        record_ids: list[int] | None = None,
+        args: list[Any] | None = None,
+        kwargs: dict[str, Any] | None = None
     ) -> Any:
         """Executes a method on an Odoo model via RPC.
 
@@ -379,7 +406,13 @@ class EqOdooConnection(odoo_connection.OdooConnection):
 
         Returns:
             The result of the method call.
+
+        Raises:
+            ValueError: If the method name starts with '_' (private/magic methods).
         """
+        if method.startswith('_'):
+            raise ValueError(f"Private method '{method}' not allowed")
+
         Model = self.odoo.env[model]
 
         if record_ids:
@@ -405,12 +438,12 @@ class EqOdooConnection(odoo_connection.OdooConnection):
     def search_read(
         self,
         model: str,
-        domain: Optional[List] = None,
-        fields: Optional[List[str]] = None,
-        limit: Optional[int] = None,
+        domain: list | None = None,
+        fields: list[str] | None = None,
+        limit: int | None = None,
         offset: int = 0,
-        order: Optional[str] = None
-    ) -> List[Dict[str, Any]]:
+        order: str | None = None
+    ) -> list[dict[str, Any]]:
         """Searches for records and returns specified fields.
 
         This is a convenience method combining search and read operations.
@@ -437,3 +470,4 @@ class EqOdooConnection(odoo_connection.OdooConnection):
             return []
 
         return Model.read(record_ids, search_fields)
+

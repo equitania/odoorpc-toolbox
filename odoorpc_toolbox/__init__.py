@@ -17,17 +17,17 @@ MCP Discovery:
 """
 
 from ._version import __version__
-from .odoo_connection import (
-    OdooConnection,
-    OdooConnectionError,
-    OdooConfigError,
-    OdooAuthError,
-)
 from .base_helper import EqOdooConnection
 from .introspection import (
     get_available_methods,
     get_method_schema,
     print_available_methods,
+)
+from .odoo_connection import (
+    OdooAuthError,
+    OdooConfigError,
+    OdooConnection,
+    OdooConnectionError,
 )
 
 __all__ = [
