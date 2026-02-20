@@ -1,0 +1,10 @@
+# odoorpc-toolbox | python/uv v0.7.0
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+▸ Setup:     uv venv && venv+ && uv pip install -e ".[dev,benchmark]"
+▸ Test:      pytest tests/ -m "not integration"
+▸ Integ:     ODOO_TEST_CONFIG=yaml_examples/test_config.yaml pytest tests/integration/ -v
+▸ Bench:     ODOO_TEST_CONFIG=yaml_examples/test_config.yaml pytest benchmarks/ -v
+▸ Lint:      ruff check . && black --check .
+▸ Build:     uv build
+▸ InitCfg:   odoorpc-init-config -o odoo_config.yaml --url http://localhost --port 8069
+▸ Verify:    python -c "from odoorpc_toolbox import EqOdooConnection; print('OK')"
