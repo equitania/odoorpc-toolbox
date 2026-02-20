@@ -100,18 +100,21 @@
 - [x] **`batch_write()` Context Manager** - Temporär `auto_commit=False`, Commit bei Exit, Rollback bei Exception ✅
 - [x] **`batch_commit()` in Environment** - Gruppiert dirty Records nach Model ✅
 - [x] **34 neue Tests** - 145 Tests gesamt, alle bestanden ✅
+- [x] **Benchmark-Framework** - 16 Szenarien mit RPC-Counter Monkey-Patch, Baseline-Simulation ✅
+- [x] **60 Integrationstests** - Live-Odoo Verifizierung aller Optimierungen ✅
 
-### Phase 2: Transport-Modernisierung → v0.7.0
+### Phase 2: Transport-Modernisierung → v0.7.0 ✅
 
-- [ ] **Transport-Abstraktion** - `Transport` Protocol in `rpc/transport.py` mit `UrllibTransport` (Fallback) und `HttpxTransport` (Connection Pooling, HTTP/2)
-- [ ] **`create_transport()` Factory** - `backend="auto"` versucht httpx, fällt auf urllib zurück
-- [ ] **Retry mit Exponential Backoff** - In `HttpxTransport` integriert, konfigurierbar: `max_attempts`, `backoff_factor`, `retry_on` (HTTP-Statuscodes)
-- [ ] **Erweiterte YAML-Konfiguration** - Neue optionale Sections: `transport`, `retry`, `timeout`, `cache` in Server-Config
-- [ ] **Request-Metriken** - `RequestMetrics` Dataclass: `total_requests`, `total_errors`, `total_time_ms`, `avg_time_ms`, Thread-safe
-- [ ] **`Proxy` Refactoring** - `ProxyJSON.__call__` und `ProxyHTTP.__call__` nutzen `self._transport.request()` statt `self._opener.open()`
-- [ ] **httpx als optionale Dependency** - `pip install odoorpc-toolbox[httpx]` für `httpx[http2]>=0.25.0`
-- [ ] **Backward-Kompatibilität** - `opener`-Parameter wird in `UrllibTransport` gewrappt
-- [ ] **Tests** - `test_transport.py`, `test_metrics.py`, erweiterte `test_rpc.py` und `test_connection.py`
+- [x] **Transport-Abstraktion** - `Transport` Protocol in `rpc/transport.py` mit `UrllibTransport` (Fallback) und `HttpxTransport` (Connection Pooling, HTTP/2) ✅
+- [x] **`create_transport()` Factory** - `backend="auto"` versucht httpx, fällt auf urllib zurück ✅
+- [x] **Retry mit Exponential Backoff** - In `HttpxTransport` integriert, konfigurierbar: `max_attempts`, `backoff_factor`, `retry_on` (HTTP-Statuscodes) ✅
+- [x] **Erweiterte YAML-Konfiguration** - Neue optionale Sections: `transport`, `retry`, `timeout`, `cache` in Server-Config ✅
+- [x] **Request-Metriken** - `RequestMetrics` Dataclass: `total_requests`, `total_errors`, `total_time_ms`, `avg_time_ms`, Thread-safe ✅
+- [x] **`Proxy` Refactoring** - `ProxyJSON.__call__` und `ProxyHTTP.__call__` nutzen `self._transport.request()` statt `self._opener.open()` ✅
+- [x] **httpx als optionale Dependency** - `pip install odoorpc-toolbox[httpx]` für `httpx[http2]>=0.25.0` ✅
+- [x] **Backward-Kompatibilität** - `opener`-Parameter wird in `UrllibTransport` gewrappt ✅
+- [x] **Tests** - `test_transport.py` (39 Tests), `test_metrics.py` (19 Tests), erweiterte `test_odoo.py` und `test_connection.py` ✅
+- [x] **Config-Initialisierung** - `generate_config()` Funktion + `odoorpc-init-config` CLI-Befehl ✅
 
 ### Phase 3: Smart ORM → v0.8.0
 
@@ -136,18 +139,21 @@
 - [x] **`batch_write()` context manager** - Temporarily sets `auto_commit=False`, commits on exit, rollback on exception ✅
 - [x] **`batch_commit()` in Environment** - Groups dirty records by model ✅
 - [x] **34 new tests** - 145 tests total, all passing ✅
+- [x] **Benchmark framework** - 16 scenarios with RPC counter monkey-patch, baseline simulation ✅
+- [x] **60 integration tests** - Live Odoo verification of all optimizations ✅
 
-### Phase 2: Transport Modernization → v0.7.0
+### Phase 2: Transport Modernization → v0.7.0 ✅
 
-- [ ] **Transport abstraction** - `Transport` protocol in `rpc/transport.py` with `UrllibTransport` (fallback) and `HttpxTransport` (connection pooling, HTTP/2)
-- [ ] **`create_transport()` factory** - `backend="auto"` tries httpx, falls back to urllib
-- [ ] **Retry with exponential backoff** - Integrated in `HttpxTransport`, configurable: `max_attempts`, `backoff_factor`, `retry_on` (HTTP status codes)
-- [ ] **Extended YAML configuration** - New optional sections: `transport`, `retry`, `timeout`, `cache` in Server config
-- [ ] **Request metrics** - `RequestMetrics` dataclass: `total_requests`, `total_errors`, `total_time_ms`, `avg_time_ms`, thread-safe
-- [ ] **`Proxy` refactoring** - `ProxyJSON.__call__` and `ProxyHTTP.__call__` use `self._transport.request()` instead of `self._opener.open()`
-- [ ] **httpx as optional dependency** - `pip install odoorpc-toolbox[httpx]` for `httpx[http2]>=0.25.0`
-- [ ] **Backward compatibility** - `opener` parameter wrapped in `UrllibTransport`
-- [ ] **Tests** - `test_transport.py`, `test_metrics.py`, extended `test_rpc.py` and `test_connection.py`
+- [x] **Transport abstraction** - `Transport` protocol in `rpc/transport.py` with `UrllibTransport` (fallback) and `HttpxTransport` (connection pooling, HTTP/2) ✅
+- [x] **`create_transport()` factory** - `backend="auto"` tries httpx, falls back to urllib ✅
+- [x] **Retry with exponential backoff** - Integrated in `HttpxTransport`, configurable: `max_attempts`, `backoff_factor`, `retry_on` (HTTP status codes) ✅
+- [x] **Extended YAML configuration** - New optional sections: `transport`, `retry`, `timeout`, `cache` in Server config ✅
+- [x] **Request metrics** - `RequestMetrics` dataclass: `total_requests`, `total_errors`, `total_time_ms`, `avg_time_ms`, thread-safe ✅
+- [x] **`Proxy` refactoring** - `ProxyJSON.__call__` and `ProxyHTTP.__call__` use `self._transport.request()` instead of `self._opener.open()` ✅
+- [x] **httpx as optional dependency** - `pip install odoorpc-toolbox[httpx]` for `httpx[http2]>=0.25.0` ✅
+- [x] **Backward compatibility** - `opener` parameter wrapped in `UrllibTransport` ✅
+- [x] **Tests** - `test_transport.py` (39 tests), `test_metrics.py` (19 tests), extended `test_odoo.py` and `test_connection.py` ✅
+- [x] **Config initialization** - `generate_config()` function + `odoorpc-init-config` CLI command ✅
 
 ### Phase 3: Smart ORM → v0.8.0
 

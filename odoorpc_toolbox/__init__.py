@@ -27,6 +27,7 @@ from ._version import __version__
 from .base_helper import EqOdooConnection
 from .batch import batch_write
 from .cache import TTLCache
+from .config_generator import generate_config
 from .exceptions import (
     Error,
     InternalError,
@@ -42,6 +43,14 @@ from .introspection import (
 )
 from .odoo import ODOO
 from .odoo_connection import OdooConnection
+from .rpc.metrics import MetricsTransport, RequestMetrics
+from .rpc.transport import (
+    HttpxTransport,
+    RetryConfig,
+    Transport,
+    UrllibTransport,
+    create_transport,
+)
 
 __all__ = [
     "__version__",
@@ -50,6 +59,7 @@ __all__ = [
     "EqOdooConnection",
     "TTLCache",
     "batch_write",
+    "generate_config",
     "Error",
     "RPCError",
     "InternalError",
@@ -59,5 +69,12 @@ __all__ = [
     "get_available_methods",
     "get_method_schema",
     "print_available_methods",
+    "Transport",
+    "UrllibTransport",
+    "HttpxTransport",
+    "create_transport",
+    "RetryConfig",
+    "RequestMetrics",
+    "MetricsTransport",
 ]
 __author__ = "Equitania Software GmbH"

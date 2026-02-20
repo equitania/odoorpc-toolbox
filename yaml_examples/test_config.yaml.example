@@ -15,3 +15,25 @@ Server:
   password: admin
   database: odoorpc_test
   protocol: jsonrpc
+
+# Transport backend (optional - uncomment to customize)
+# transport:
+#   backend: auto              # "auto", "urllib", or "httpx"
+#   http2: true                # Enable HTTP/2 (httpx only)
+#   pool_connections: 10       # Max pooled connections (httpx only)
+
+# Retry configuration (optional - uncomment to customize)
+# retry:
+#   max_attempts: 3
+#   backoff_factor: 0.5
+#   retry_on: [502, 503, 504]
+
+# Timeout configuration (optional - uncomment to customize)
+# timeout:
+#   connect: 30
+#   read: 120
+
+# Cache configuration (optional - uncomment to customize)
+# cache:
+#   maxsize: 256
+#   ttl: 3600

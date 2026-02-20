@@ -12,21 +12,25 @@
 
 ### Projektübersicht
 
-Ein Python-Paket mit Hilfsfunktionen und vollständig internalisierter OdooRPC-Implementierung für Odoo-Server-Kommunikation. JSON-RPC 2.0 Protokoll, MCP-kompatible Introspektion, TTL-Cache, Batch-Writes und native `search_read`-Optimierung.
+Ein Python-Paket mit Hilfsfunktionen und vollständig internalisierter OdooRPC-Implementierung für Odoo-Server-Kommunikation. JSON-RPC 2.0 Protokoll, MCP-kompatible Introspektion, TTL-Cache, Batch-Writes, native `search_read`-Optimierung und pluggbare Transport-Schicht mit optionalem HTTP/2 und Retry-Logik.
 
 **Autor**: Equitania Software GmbH - Pforzheim - Germany
 **Lizenz**: GNU Affero General Public License v3
 **Python**: >= 3.10
-**Version**: 0.6.0
+**Version**: 0.7.0
 
 ### Funktionen
 
 - **Vollständig internalisiertes OdooRPC** - Keine externe Abhängigkeit, JSON-RPC 2.0
+- **Pluggbare Transport-Schicht** (v0.7.0) - urllib (Standard) oder httpx (Connection Pooling, HTTP/2, Retry)
 - **TTL-Cache** für wiederholte Lookups (Länder, Bundesländer, UoMs) - bis zu 99x weniger RPC-Calls
 - **Batch-Write** Context Manager - N Felder → 1 RPC statt N RPCs
 - **Natives `search_read`** - 1 RPC statt search + read = 2 RPCs
+- **Request-Metriken** - Thread-safe Tracking von Requests, Fehlern und Latenz
+- **Retry mit Exponential Backoff** - Automatische Wiederholung bei 502/503/504
 - **MCP-kompatible Introspektion** - JSON Schema für alle Helper-Methoden
-- **YAML-Konfiguration** mit automatischer HTTPS-Erkennung
+- **Erweiterte YAML-Konfiguration** mit Transport, Retry, Timeout und Cache Sections
+- **Config-Generator** - CLI-Befehl und Python-Funktion zum Erstellen von Konfigurationsdateien
 - Hilfsfunktionen für häufige Odoo-Operationen:
   - Partner-Verwaltung (Suchen, Erstellen, Kategorien, Titel)
   - Länder- und Bundesland-Abfragen (nach Name oder ISO-Code)
@@ -38,16 +42,47 @@ Ein Python-Paket mit Hilfsfunktionen und vollständig internalisierter OdooRPC-I
 ### Installation
 
 ```bash
-# Standard
+# Standard (nur urllib Transport)
 pip install odoorpc-toolbox
 
+# Mit httpx Transport (HTTP/2, Connection Pooling, Retry)
+pip install odoorpc-toolbox[httpx]
+
 # Oder mit UV (empfohlen)
-uv pip install odoorpc-toolbox
+uv pip install odoorpc-toolbox[httpx]
 ```
 
 ### Konfiguration
 
-Erstellen Sie eine YAML-Konfigurationsdatei:
+Erstellen Sie eine YAML-Konfigurationsdatei manuell oder per CLI:
+
+```bash
+# Config-Datei generieren (alle Sections mit Defaults)
+odoorpc-init-config
+
+# Benutzerdefinierter Pfad
+odoorpc-init-config -o meine_config.yaml
+
+# Minimale Config (nur Server-Section)
+odoorpc-init-config --minimal
+
+# Mit benutzerdefinierten Werten
+odoorpc-init-config --url http://localhost --port 8069 --database mydb
+```
+
+Oder programmatisch:
+
+```python
+from odoorpc_toolbox import generate_config
+
+# Vollständige Config mit allen Sections
+generate_config("odoo_config.yaml", url="http://localhost", port=8069, database="mydb")
+
+# Minimale Config (nur Server)
+generate_config("odoo_config.yaml", minimal=True)
+```
+
+#### Basis-Konfiguration
 
 ```yaml
 Server:
@@ -57,6 +92,40 @@ Server:
   password: secret
   database: mydb
   protocol: jsonrpc                # jsonrpc oder jsonrpc+ssl
+```
+
+#### Erweiterte Konfiguration (v0.7.0)
+
+```yaml
+Server:
+  url: https://odoo.example.com
+  port: 443
+  user: admin
+  password: secret
+  database: mydb
+
+# Transport Backend (optional)
+# Benötigt: pip install odoorpc-toolbox[httpx]
+transport:
+  backend: auto              # "auto" (versucht httpx, Fallback urllib), "urllib" oder "httpx"
+  http2: true                # HTTP/2 aktivieren (nur httpx)
+  pool_connections: 10       # Max. gepoolte Verbindungen (nur httpx)
+
+# Retry-Konfiguration (optional, nur httpx)
+retry:
+  max_attempts: 3            # Maximale Versuche (1 = kein Retry)
+  backoff_factor: 0.5        # Exponentieller Backoff-Faktor in Sekunden
+  retry_on: [502, 503, 504]  # HTTP-Statuscodes für Retry
+
+# Timeout-Konfiguration (optional)
+timeout:
+  connect: 30                # Verbindungs-Timeout in Sekunden
+  read: 120                  # Lese-Timeout in Sekunden
+
+# Cache-Konfiguration (optional)
+cache:
+  maxsize: 256               # Maximale Cache-Einträge
+  ttl: 3600                  # Time-to-Live in Sekunden
 ```
 
 ### Schnelleinstieg
@@ -135,6 +204,35 @@ for state in ["Bayern", "Bayern", "Bayern"]:
 connection.clear_cache()
 ```
 
+### Transport-Schicht (v0.7.0)
+
+```python
+from odoorpc_toolbox import ODOO, create_transport, RetryConfig
+
+# Automatische Backend-Auswahl (httpx wenn verfügbar, sonst urllib)
+odoo = ODOO('localhost', port=8069)
+
+# Explizit httpx mit HTTP/2 und Retry
+from odoorpc_toolbox import HttpxTransport
+transport = HttpxTransport(
+    http2=True,
+    retry_config=RetryConfig(max_attempts=3, backoff_factor=0.5),
+    pool_connections=10,
+)
+odoo = ODOO('localhost', port=8069, transport=transport)
+
+# Request-Metriken abfragen
+from odoorpc_toolbox import MetricsTransport, RequestMetrics
+metrics = RequestMetrics()
+mt = MetricsTransport(transport, metrics)
+odoo = ODOO('localhost', port=8069, transport=mt)
+
+# Nach einigen Operationen...
+print(f"Requests: {metrics.total_requests}")
+print(f"Fehler: {metrics.total_errors}")
+print(f"Durchschnitt: {metrics.avg_time_ms:.1f} ms")
+```
+
 ### MCP-Introspektion
 
 ```python
@@ -187,7 +285,8 @@ ruff check . && black --check .
 
 ### Abhängigkeiten
 
-- **Runtime**: PyYAML >= 6.0 (einzige Abhängigkeit)
+- **Runtime**: PyYAML >= 6.0 (einzige Pflichtabhängigkeit)
+- **Optional**: httpx[http2] >= 0.25.0 (für HTTP/2, Connection Pooling, Retry)
 - **OdooRPC**: Vollständig internalisiert - keine externe Abhängigkeit
 - **Python**: >= 3.10
 
@@ -197,21 +296,25 @@ ruff check . && black --check .
 
 ### Project Overview
 
-A Python package providing helper functions and a fully internalized OdooRPC implementation for Odoo server communication. JSON-RPC 2.0 protocol, MCP-compatible introspection, TTL cache, batch writes, and native `search_read` optimization.
+A Python package providing helper functions and a fully internalized OdooRPC implementation for Odoo server communication. JSON-RPC 2.0 protocol, MCP-compatible introspection, TTL cache, batch writes, native `search_read` optimization, and pluggable transport layer with optional HTTP/2 and retry logic.
 
 **Author**: Equitania Software GmbH - Pforzheim - Germany
 **License**: GNU Affero General Public License v3
 **Python**: >= 3.10
-**Version**: 0.6.0
+**Version**: 0.7.0
 
 ### Features
 
 - **Fully internalized OdooRPC** - No external dependency, JSON-RPC 2.0
+- **Pluggable transport layer** (v0.7.0) - urllib (default) or httpx (connection pooling, HTTP/2, retry)
 - **TTL cache** for repeated lookups (countries, states, UoMs) - up to 99x fewer RPC calls
 - **Batch write** context manager - N fields → 1 RPC instead of N RPCs
 - **Native `search_read`** - 1 RPC instead of search + read = 2 RPCs
+- **Request metrics** - Thread-safe tracking of requests, errors, and latency
+- **Retry with exponential backoff** - Automatic retry on 502/503/504
 - **MCP-compatible introspection** - JSON Schema for all helper methods
-- **YAML configuration** with automatic HTTPS detection
+- **Extended YAML configuration** with transport, retry, timeout, and cache sections
+- **Config generator** - CLI command and Python function for creating configuration files
 - Helper functions for common Odoo operations:
   - Partner management (search, create, categories, titles)
   - Country and state lookups (by name or ISO code)
@@ -223,16 +326,47 @@ A Python package providing helper functions and a fully internalized OdooRPC imp
 ### Installation
 
 ```bash
-# Standard
+# Standard (urllib transport only)
 pip install odoorpc-toolbox
 
+# With httpx transport (HTTP/2, connection pooling, retry)
+pip install odoorpc-toolbox[httpx]
+
 # Or with UV (recommended)
-uv pip install odoorpc-toolbox
+uv pip install odoorpc-toolbox[httpx]
 ```
 
 ### Configuration
 
-Create a YAML configuration file:
+Create a YAML configuration file manually or via CLI:
+
+```bash
+# Generate config file (all sections with defaults)
+odoorpc-init-config
+
+# Custom path
+odoorpc-init-config -o my_config.yaml
+
+# Minimal config (Server section only)
+odoorpc-init-config --minimal
+
+# With custom values
+odoorpc-init-config --url http://localhost --port 8069 --database mydb
+```
+
+Or programmatically:
+
+```python
+from odoorpc_toolbox import generate_config
+
+# Full config with all sections
+generate_config("odoo_config.yaml", url="http://localhost", port=8069, database="mydb")
+
+# Minimal config (Server only)
+generate_config("odoo_config.yaml", minimal=True)
+```
+
+#### Basic Configuration
 
 ```yaml
 Server:
@@ -242,6 +376,40 @@ Server:
   password: secret
   database: mydb
   protocol: jsonrpc                # jsonrpc or jsonrpc+ssl
+```
+
+#### Extended Configuration (v0.7.0)
+
+```yaml
+Server:
+  url: https://odoo.example.com
+  port: 443
+  user: admin
+  password: secret
+  database: mydb
+
+# Transport backend (optional)
+# Requires: pip install odoorpc-toolbox[httpx]
+transport:
+  backend: auto              # "auto" (tries httpx, falls back to urllib), "urllib", or "httpx"
+  http2: true                # Enable HTTP/2 (httpx only)
+  pool_connections: 10       # Max pooled connections (httpx only)
+
+# Retry configuration (optional, httpx only)
+retry:
+  max_attempts: 3            # Maximum retry attempts (1 = no retry)
+  backoff_factor: 0.5        # Exponential backoff base in seconds
+  retry_on: [502, 503, 504]  # HTTP status codes that trigger retry
+
+# Timeout configuration (optional)
+timeout:
+  connect: 30                # Connection timeout in seconds
+  read: 120                  # Read timeout in seconds
+
+# Cache configuration (optional)
+cache:
+  maxsize: 256               # Maximum number of cached entries
+  ttl: 3600                  # Time-to-live in seconds
 ```
 
 ### Quick Start
@@ -320,6 +488,35 @@ for state in ["California", "California", "California"]:
 connection.clear_cache()
 ```
 
+### Transport Layer (v0.7.0)
+
+```python
+from odoorpc_toolbox import ODOO, create_transport, RetryConfig
+
+# Automatic backend selection (httpx if available, else urllib)
+odoo = ODOO('localhost', port=8069)
+
+# Explicit httpx with HTTP/2 and retry
+from odoorpc_toolbox import HttpxTransport
+transport = HttpxTransport(
+    http2=True,
+    retry_config=RetryConfig(max_attempts=3, backoff_factor=0.5),
+    pool_connections=10,
+)
+odoo = ODOO('localhost', port=8069, transport=transport)
+
+# Query request metrics
+from odoorpc_toolbox import MetricsTransport, RequestMetrics
+metrics = RequestMetrics()
+mt = MetricsTransport(transport, metrics)
+odoo = ODOO('localhost', port=8069, transport=mt)
+
+# After some operations...
+print(f"Requests: {metrics.total_requests}")
+print(f"Errors: {metrics.total_errors}")
+print(f"Average: {metrics.avg_time_ms:.1f} ms")
+```
+
 ### MCP Introspection
 
 ```python
@@ -359,7 +556,7 @@ partner_ids = Partner.search([('is_company', '=', True)])
 ### Architecture
 
 ```
-OdooConnection (YAML config, auth)
+OdooConnection (YAML config, auth, transport builder)
   └── EqOdooConnection (20+ helper methods, TTL cache, batch write)
         ├── Partner ops: create_partner, check_if_company_exists, categories, titles
         ├── Location ops: get_country_id, get_state_id, extract_street_address_part
@@ -373,7 +570,13 @@ ODOO (internalized OdooRPC)
   ├── DB service (dump/restore/create/drop)
   ├── Report service
   ├── Session persistence (~/.odoorpcrc)
-  └── RPC (JSON-RPC 2.0 via ConnectorJSONRPC / ConnectorJSONRPCSSL)
+  └── RPC Layer
+      ├── ConnectorJSONRPC / ConnectorJSONRPCSSL
+      ├── Transport (v0.7.0)
+      │   ├── UrllibTransport (default, no extra deps)
+      │   └── HttpxTransport (HTTP/2, pooling, retry)
+      ├── MetricsTransport (request tracking decorator)
+      └── RetryConfig (exponential backoff + jitter)
 ```
 
 ### API Reference
@@ -397,8 +600,18 @@ ODOO (internalized OdooRPC)
 | `get_picture(path, max_size_mb)` | Load image as BASE64 | 0 |
 | `extract_street_address_part(street)` | Parse street/house number | 0 |
 | `batch_write(odoo)` | Context manager for batched writes | 1 |
+| `generate_config(path, ...)` | Generate YAML config file | 0 |
 
 *\* Cached methods: First call = 1 RPC, subsequent calls = 0 RPCs (cache hit)*
+
+### CLI Commands
+
+| Command | Description |
+|---------|-------------|
+| `odoorpc-init-config` | Generate YAML config file with all sections |
+| `odoorpc-init-config -o path.yaml` | Custom output path |
+| `odoorpc-init-config --minimal` | Server section only |
+| `odoorpc-init-config --force` | Overwrite existing file |
 
 ### Development
 
@@ -407,13 +620,13 @@ ODOO (internalized OdooRPC)
 uv venv && source .venv/bin/activate
 uv pip install -e ".[dev,benchmark]"
 
-# Unit tests (no Odoo required)
+# Unit tests (no Odoo required) - 227 tests
 pytest tests/ -m "not integration"
 
-# Integration tests (live Odoo required)
+# Integration tests (live Odoo required) - 60 tests
 ODOO_TEST_CONFIG=yaml_examples/test_config.yaml pytest tests/integration/ -v
 
-# Benchmarks
+# Benchmarks - 16 scenarios
 ODOO_TEST_CONFIG=yaml_examples/test_config.yaml pytest benchmarks/ -v
 
 # Quality checks
@@ -422,7 +635,8 @@ ruff check . && black --check .
 
 ### Requirements
 
-- **Runtime**: PyYAML >= 6.0 (only dependency)
+- **Runtime**: PyYAML >= 6.0 (only required dependency)
+- **Optional**: httpx[http2] >= 0.25.0 (for HTTP/2, connection pooling, retry)
 - **OdooRPC**: Fully internalized - no external dependency
 - **Python**: >= 3.10
 
@@ -430,13 +644,15 @@ ruff check . && black --check .
 
 ## Performance Benchmarks / Leistungsmessungen
 
-| Scenario | v0.5.1 RPCs | v0.6.0 RPCs | Reduction | Speedup |
-|----------|-------------|-------------|-----------|---------|
-| batch_write (5 fields) | 5 | 1 | 80% | 5.56x |
-| search_read | 2 | 1 | 50% | 1.28-2.09x |
-| cached_lookup (100x) | 100 | 1 | 99% | 99.96x |
-| state_lookup (10x) | 10 | 1 | 90% | 8.82x |
-| get_sequence | 2 | 1 | 50% | 1.92x |
+| Scenario | v0.5.1 RPCs | v0.6.0+ RPCs | Reduction | Speedup |
+|----------|-------------|--------------|-----------|---------|
+| batch_write (5 fields) | 5 | 1 | 80% | 5.27x |
+| search_read | 2 | 1 | 50% | 1.88-2.23x |
+| cached_lookup (100x) | 100 | 1 | 99% | 101.63x |
+| state_lookup (10x) | 10 | 1 | 90% | 8.72x |
+| get_sequence | 2 | 1 | 50% | 1.93x |
+
+*v0.7.0 transport abstraction introduces zero performance regression.*
 
 ## Contributing / Mitwirken
 

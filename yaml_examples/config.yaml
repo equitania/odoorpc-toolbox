@@ -1,4 +1,7 @@
-# Server configuration
+# OdooRPC Toolbox Configuration
+# Documentation: https://github.com/equitania/odoorpc-toolbox
+
+# Server connection (required)
 Server:
   url: https://odoo.com                             # URL to Odoo - for localhost write http://localhost
   port: 443                                         # Port of Odoo - Remote over SSL write 443 - for localhost write 8069 or other Odoo port
@@ -6,3 +9,31 @@ Server:
   password: pw                                      # Password for the user
   database: db                                      # Name of the Odoo database
   protocol: jsonrpc                                 # Protocol for the request, jsonrpc without ssl, jsonrpc+ssl with ssl
+
+# Transport backend (optional - defaults shown)
+# Requires: pip install odoorpc-toolbox[httpx]
+# transport:
+#   backend: auto              # "auto" (tries httpx, falls back to urllib), "urllib", or "httpx"
+#   http2: true                # Enable HTTP/2 (httpx only)
+#   pool_connections: 10       # Max pooled connections (httpx only)
+
+# Retry configuration (optional - defaults shown)
+# Only active with httpx transport backend
+# retry:
+#   max_attempts: 3            # Maximum retry attempts (1 = no retry)
+#   backoff_factor: 0.5        # Exponential backoff base in seconds
+#   retry_on:                  # HTTP status codes that trigger retry
+#     - 502
+#     - 503
+#     - 504
+
+# Timeout configuration (optional - defaults shown)
+# timeout:
+#   connect: 30                # Connection timeout in seconds
+#   read: 120                  # Read timeout in seconds
+
+# Cache configuration (optional - defaults shown)
+# Used by cached helper methods (get_state_id, get_country_id_by_code, etc.)
+# cache:
+#   maxsize: 256               # Maximum number of cached entries
+#   ttl: 3600                  # Time-to-live in seconds (0 = no expiry)

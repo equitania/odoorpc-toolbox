@@ -25,6 +25,42 @@ def valid_config_yaml():
 
 
 @pytest.fixture
+def extended_config_yaml():
+    """Create a temporary YAML config with extended transport/retry/timeout/cache sections."""
+    content = """Server:
+  url: https://test.odoo.com
+  port: 443
+  user: admin
+  password: admin123
+  database: testdb
+  protocol: jsonrpc+ssl
+
+transport:
+  backend: urllib
+  http2: false
+  pool_connections: 5
+
+retry:
+  max_attempts: 5
+  backoff_factor: 1.0
+  retry_on: [500, 502, 503]
+
+timeout:
+  connect: 10
+  read: 60
+
+cache:
+  maxsize: 128
+  ttl: 1800
+"""
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
+        f.write(content)
+        f.flush()
+        yield f.name
+    os.unlink(f.name)
+
+
+@pytest.fixture
 def invalid_config_yaml():
     """Create a temporary invalid YAML configuration file."""
     content = """This is not valid YAML: [

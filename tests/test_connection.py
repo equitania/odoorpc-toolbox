@@ -184,3 +184,131 @@ class TestOdooConnectionConfig:
         assert mock_instance.env.context["active_test"] is False
         # Check that tracking is disabled
         assert mock_instance.env.context["tracking_disable"] is True
+
+
+class TestExtendedYAMLConfig:
+    """Tests for extended YAML configuration sections (transport, retry, timeout, cache)."""
+
+    @patch("odoorpc_toolbox.odoo_connection.ODOO")
+    def test_default_transport_config(self, mock_odoo, valid_config_yaml):
+        """Test that missing transport section uses defaults."""
+        mock_instance = MagicMock()
+        mock_instance.version = "16.0"
+        mock_instance.config = {}
+        mock_instance.env.context = {}
+        mock_odoo.return_value = mock_instance
+
+        from odoorpc_toolbox import OdooConnection
+
+        conn = OdooConnection(valid_config_yaml)
+        assert conn.transport_config["backend"] == "auto"
+        assert conn.transport_config["http2"] is True
+        assert conn.transport_config["pool_connections"] == 10
+
+    @patch("odoorpc_toolbox.odoo_connection.ODOO")
+    def test_default_retry_config(self, mock_odoo, valid_config_yaml):
+        """Test that missing retry section uses defaults."""
+        mock_instance = MagicMock()
+        mock_instance.version = "16.0"
+        mock_instance.config = {}
+        mock_instance.env.context = {}
+        mock_odoo.return_value = mock_instance
+
+        from odoorpc_toolbox import OdooConnection
+
+        conn = OdooConnection(valid_config_yaml)
+        assert conn.retry_config["max_attempts"] == 3
+        assert conn.retry_config["backoff_factor"] == 0.5
+        assert conn.retry_config["retry_on"] == [502, 503, 504]
+
+    @patch("odoorpc_toolbox.odoo_connection.ODOO")
+    def test_default_timeout_config(self, mock_odoo, valid_config_yaml):
+        """Test that missing timeout section uses defaults."""
+        mock_instance = MagicMock()
+        mock_instance.version = "16.0"
+        mock_instance.config = {}
+        mock_instance.env.context = {}
+        mock_odoo.return_value = mock_instance
+
+        from odoorpc_toolbox import OdooConnection
+
+        conn = OdooConnection(valid_config_yaml)
+        assert conn.timeout_config["connect"] == 30
+        assert conn.timeout_config["read"] == 120
+
+    @patch("odoorpc_toolbox.odoo_connection.ODOO")
+    def test_default_cache_config(self, mock_odoo, valid_config_yaml):
+        """Test that missing cache section uses defaults."""
+        mock_instance = MagicMock()
+        mock_instance.version = "16.0"
+        mock_instance.config = {}
+        mock_instance.env.context = {}
+        mock_odoo.return_value = mock_instance
+
+        from odoorpc_toolbox import OdooConnection
+
+        conn = OdooConnection(valid_config_yaml)
+        assert conn.cache_config["maxsize"] == 256
+        assert conn.cache_config["ttl"] == 3600
+
+    @patch("odoorpc_toolbox.odoo_connection.ODOO")
+    def test_custom_transport_config(self, mock_odoo, extended_config_yaml):
+        """Test that custom transport section is parsed correctly."""
+        mock_instance = MagicMock()
+        mock_instance.version = "18.0"
+        mock_instance.config = {}
+        mock_instance.env.context = {}
+        mock_odoo.return_value = mock_instance
+
+        from odoorpc_toolbox import OdooConnection
+
+        conn = OdooConnection(extended_config_yaml)
+        assert conn.transport_config["backend"] == "urllib"
+        assert conn.transport_config["http2"] is False
+        assert conn.transport_config["pool_connections"] == 5
+
+    @patch("odoorpc_toolbox.odoo_connection.ODOO")
+    def test_custom_retry_config(self, mock_odoo, extended_config_yaml):
+        """Test that custom retry section is parsed correctly."""
+        mock_instance = MagicMock()
+        mock_instance.version = "18.0"
+        mock_instance.config = {}
+        mock_instance.env.context = {}
+        mock_odoo.return_value = mock_instance
+
+        from odoorpc_toolbox import OdooConnection
+
+        conn = OdooConnection(extended_config_yaml)
+        assert conn.retry_config["max_attempts"] == 5
+        assert conn.retry_config["backoff_factor"] == 1.0
+        assert conn.retry_config["retry_on"] == [500, 502, 503]
+
+    @patch("odoorpc_toolbox.odoo_connection.ODOO")
+    def test_custom_timeout_config(self, mock_odoo, extended_config_yaml):
+        """Test that custom timeout section is parsed correctly."""
+        mock_instance = MagicMock()
+        mock_instance.version = "18.0"
+        mock_instance.config = {}
+        mock_instance.env.context = {}
+        mock_odoo.return_value = mock_instance
+
+        from odoorpc_toolbox import OdooConnection
+
+        conn = OdooConnection(extended_config_yaml)
+        assert conn.timeout_config["connect"] == 10
+        assert conn.timeout_config["read"] == 60
+
+    @patch("odoorpc_toolbox.odoo_connection.ODOO")
+    def test_timeout_passed_to_odoo(self, mock_odoo, extended_config_yaml):
+        """Test that read timeout from config is passed to ODOO constructor."""
+        mock_instance = MagicMock()
+        mock_instance.version = "18.0"
+        mock_instance.config = {}
+        mock_instance.env.context = {}
+        mock_odoo.return_value = mock_instance
+
+        from odoorpc_toolbox import OdooConnection
+
+        OdooConnection(extended_config_yaml)
+        call_args = mock_odoo.call_args
+        assert call_args[1]["timeout"] == 60

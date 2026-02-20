@@ -7,10 +7,8 @@ These methods can be accessed from the connectors of this module.
 Originally from OdooRPC (LGPL-3.0), modernized for Python 3.10+.
 """
 
-from http.cookiejar import CookieJar
-from urllib.request import HTTPCookieProcessor, build_opener
-
 from odoorpc_toolbox.rpc import errors, jsonrpc
+from odoorpc_toolbox.rpc.transport import UrllibTransport
 
 
 class Connector:
@@ -51,6 +49,10 @@ class Connector:
 class ConnectorJSONRPC(Connector):
     """Connector class using the JSON-RPC protocol.
 
+    Accepts either a Transport instance or a legacy urllib opener.
+    Both JSON and HTTP proxies share the same Transport for consistent
+    cookie/session state.
+
     Example:
         >>> cnt = ConnectorJSONRPC('localhost', port=8069)
         >>> cnt.proxy_json.web.session.authenticate(db='mydb', login='admin', password='admin')
@@ -64,32 +66,37 @@ class ConnectorJSONRPC(Connector):
         version: str | None = None,
         deserialize: bool = True,
         opener=None,
+        transport=None,
     ) -> None:
         super().__init__(host, port, timeout, version)
         self.deserialize = deserialize
-        # One URL opener (with cookies handling) shared between JSON and HTTP requests
-        if opener is None:
-            cookie_jar = CookieJar()
-            opener = build_opener(HTTPCookieProcessor(cookie_jar))
-        self._opener = opener
+
+        # Create or wrap transport - one instance shared between JSON and HTTP proxies
+        if transport is not None:
+            self._transport = transport
+        elif opener is not None:
+            self._transport = UrllibTransport(opener=opener)
+        else:
+            self._transport = UrllibTransport()
+
         self._proxy_json, self._proxy_http = self._get_proxies()
 
     def _get_proxies(self) -> tuple[jsonrpc.ProxyJSON, jsonrpc.ProxyHTTP]:
-        """Return ProxyJSON and ProxyHTTP instances for the server."""
+        """Return ProxyJSON and ProxyHTTP instances sharing the same transport."""
         proxy_json = jsonrpc.ProxyJSON(
             self.host,
             self.port,
             self._timeout,
             ssl=self.ssl,
             deserialize=self.deserialize,
-            opener=self._opener,
+            transport=self._transport,
         )
         proxy_http = jsonrpc.ProxyHTTP(
             self.host,
             self.port,
             self._timeout,
             ssl=self.ssl,
-            opener=self._opener,
+            transport=self._transport,
         )
         # Detect the server version
         if self.version is None:
@@ -135,8 +142,9 @@ class ConnectorJSONRPCSSL(ConnectorJSONRPC):
         version: str | None = None,
         deserialize: bool = True,
         opener=None,
+        transport=None,
     ) -> None:
-        super().__init__(host, port, timeout, version, opener=opener)
+        super().__init__(host, port, timeout, version, opener=opener, transport=transport)
         self._proxy_json, self._proxy_http = self._get_proxies()
 
     @property

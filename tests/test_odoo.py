@@ -125,3 +125,59 @@ class TestODOOJson:
         odoo = ODOO("localhost", version="16.0")
         result = odoo.json("/jsonrpc", {"service": "db", "method": "list", "args": []})
         assert result["result"] == ["db1", "db2"]
+
+
+class TestODOOTransport:
+    """Tests for transport parameter support."""
+
+    @patch("odoorpc_toolbox.odoo.PROTOCOLS")
+    def test_transport_parameter_passed(self, mock_protocols):
+        mock_connector = MagicMock()
+        mock_connector.version = "16.0"
+        mock_protocols.__getitem__ = MagicMock(return_value=MagicMock(return_value=mock_connector))
+
+        mock_transport = MagicMock()
+        odoo = ODOO("localhost", version="16.0", transport=mock_transport)
+        assert odoo is not None
+        # Verify transport was passed to PROTOCOLS constructor
+        constructor_call = mock_protocols.__getitem__.return_value.call_args
+        assert constructor_call[1]["transport"] is mock_transport
+
+    @patch("odoorpc_toolbox.odoo.PROTOCOLS")
+    def test_opener_parameter_still_works(self, mock_protocols):
+        mock_connector = MagicMock()
+        mock_connector.version = "16.0"
+        mock_protocols.__getitem__ = MagicMock(return_value=MagicMock(return_value=mock_connector))
+
+        mock_opener = MagicMock()
+        odoo = ODOO("localhost", version="16.0", opener=mock_opener)
+        assert odoo is not None
+        constructor_call = mock_protocols.__getitem__.return_value.call_args
+        assert constructor_call[1]["opener"] is mock_opener
+
+    def test_opener_and_transport_raises(self):
+        with pytest.raises(ValueError, match="Cannot specify both"):
+            ODOO("localhost", opener=MagicMock(), transport=MagicMock())
+
+    @patch("odoorpc_toolbox.odoo.PROTOCOLS")
+    def test_metrics_property_none_without_metrics_transport(self, mock_protocols):
+        mock_connector = MagicMock()
+        mock_connector.version = "16.0"
+        mock_connector._transport = MagicMock(spec=[])  # No metrics attribute
+        mock_protocols.__getitem__ = MagicMock(return_value=MagicMock(return_value=mock_connector))
+
+        odoo = ODOO("localhost", version="16.0")
+        assert odoo.metrics is None
+
+    @patch("odoorpc_toolbox.odoo.PROTOCOLS")
+    def test_metrics_property_with_metrics_transport(self, mock_protocols):
+        from odoorpc_toolbox.rpc.metrics import RequestMetrics
+
+        mock_connector = MagicMock()
+        mock_connector.version = "16.0"
+        metrics = RequestMetrics()
+        mock_connector._transport.metrics = metrics
+        mock_protocols.__getitem__ = MagicMock(return_value=MagicMock(return_value=mock_connector))
+
+        odoo = ODOO("localhost", version="16.0")
+        assert odoo.metrics is metrics

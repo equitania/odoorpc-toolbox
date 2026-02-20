@@ -1,6 +1,7 @@
 """JSON-RPC 2.0 protocol implementation for Odoo communication.
 
 Provides ProxyJSON for JSON-RPC requests and ProxyHTTP for raw HTTP requests.
+Uses Transport abstraction for pluggable HTTP backends (urllib, httpx).
 
 Originally from OdooRPC (LGPL-3.0), modernized for Python 3.10+.
 """
@@ -10,8 +11,8 @@ import io
 import json
 import logging
 import random
-from http.cookiejar import CookieJar
-from urllib.request import HTTPCookieProcessor, Request, build_opener
+
+from odoorpc_toolbox.rpc.transport import TransportResponse, UrllibTransport
 
 LOG_HIDDEN_JSON_PARAMS = ["password"]
 LOG_JSON_SEND_MSG = "(JSON,send) %(url)s %(data)s"
@@ -31,7 +32,12 @@ def encode_data(data: str) -> bytes:
 
 
 def decode_data(data) -> io.StringIO:
-    """Decode HTTP response data to a StringIO object."""
+    """Decode HTTP response data to a StringIO object.
+
+    Accepts either a urllib response (with .read()) or a TransportResponse.
+    """
+    if isinstance(data, TransportResponse):
+        return io.StringIO(data.body.decode("utf-8"))
     return io.StringIO(data.read().decode("utf-8"))
 
 
@@ -47,7 +53,11 @@ def get_json_log_data(data: dict) -> dict:
 
 
 class Proxy:
-    """Base class to implement a proxy to perform requests."""
+    """Base class to implement a proxy to perform requests.
+
+    Accepts either a Transport instance or a legacy urllib opener.
+    If neither is provided, creates a default UrllibTransport.
+    """
 
     def __init__(
         self,
@@ -56,14 +66,27 @@ class Proxy:
         timeout: float = 120,
         ssl: bool = False,
         opener=None,
+        transport=None,
     ) -> None:
         self._root_url = "{http}{host}:{port}".format(http=("https://" if ssl else "http://"), host=host, port=port)
         self._timeout = timeout
         self._builder = URLBuilder(self)
-        self._opener = opener
-        if not opener:
-            cookie_jar = CookieJar()
-            self._opener = build_opener(HTTPCookieProcessor(cookie_jar))
+
+        if transport is not None:
+            self._transport = transport
+        elif opener is not None:
+            self._transport = UrllibTransport(opener=opener)
+        else:
+            self._transport = UrllibTransport()
+
+    @property
+    def _opener(self):
+        """Backward-compatible access to the underlying urllib opener.
+
+        Returns the opener if the transport is UrllibTransport-based,
+        otherwise returns None.
+        """
+        return getattr(self._transport, "opener", None)
 
     def __getattr__(self, name: str):
         return getattr(self._builder, name)
@@ -91,8 +114,9 @@ class ProxyJSON(Proxy):
         ssl: bool = False,
         opener=None,
         deserialize: bool = True,
+        transport=None,
     ) -> None:
-        super().__init__(host, port, timeout, ssl, opener)
+        super().__init__(host, port, timeout, ssl, opener, transport)
         self._deserialize = deserialize
 
     def __call__(self, url: str, params: dict | None = None) -> dict:
@@ -110,12 +134,14 @@ class ProxyJSON(Proxy):
         log_data = get_json_log_data(data)
         logger.debug(LOG_JSON_SEND_MSG, {"url": full_url, "data": log_data})
         data_json = json.dumps(data)
-        request = Request(url=full_url, data=encode_data(data_json))
-        request.add_header("Content-Type", "application/json")
-        response = self._opener.open(request, timeout=self._timeout)
+        data_bytes = encode_data(data_json)
+        headers = {"Content-Type": "application/json"}
+
+        response = self._transport.request(full_url, data=data_bytes, headers=headers, timeout=self._timeout)
+
         if not self._deserialize:
             return response
-        result = json.load(decode_data(response))
+        result = json.loads(response.body.decode("utf-8"))
         logger.debug(
             LOG_JSON_RECV_MSG,
             {"url": full_url, "data": log_data, "result": result},
@@ -134,14 +160,8 @@ class ProxyHTTP(Proxy):
             LOG_HTTP_SEND_MSG,
             {"url": full_url, "data": f" ({data})" if data else ""},
         )
-        kwargs: dict = {"url": full_url}
-        if data:
-            kwargs["data"] = encode_data(data)
-        request = Request(**kwargs)
-        if headers:
-            for hkey, hvalue in headers.items():
-                request.add_header(hkey, hvalue)
-        response = self._opener.open(request, timeout=self._timeout)
+        data_bytes = encode_data(data) if data else None
+        response = self._transport.request(full_url, data=data_bytes, headers=headers, timeout=self._timeout)
         logger.debug(
             LOG_HTTP_RECV_MSG,
             {

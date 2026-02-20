@@ -48,11 +48,14 @@ class ODOO:
         timeout: float = 120,
         version: str | None = None,
         opener=None,
+        transport=None,
     ) -> None:
         if protocol not in ["jsonrpc", "jsonrpc+ssl"]:
             raise ValueError(
                 f"The protocol '{protocol}' is not supported. Please choose from: {['jsonrpc', 'jsonrpc+ssl']}"
             )
+        if opener is not None and transport is not None:
+            raise ValueError("Cannot specify both 'opener' and 'transport'. Use one or the other.")
         try:
             port = int(port)
         except (ValueError, TypeError) as exc:
@@ -74,7 +77,9 @@ class ODOO:
 
         # Instantiate the server connector
         try:
-            self._connector = PROTOCOLS[protocol](self._host, self._port, timeout, version, opener=opener)
+            self._connector = PROTOCOLS[protocol](
+                self._host, self._port, timeout, version, opener=opener, transport=transport
+            )
         except rpc_errors.ConnectorError as exc:
             raise exceptions.InternalError(exc.message) from exc
 
@@ -94,6 +99,14 @@ class ODOO:
             - timeout: RPC request timeout in seconds (default: 120)
         """
         return self._config
+
+    @property
+    def metrics(self):
+        """Return RequestMetrics if a MetricsTransport is in use, else None."""
+        transport = getattr(self._connector, "_transport", None)
+        if transport is not None and hasattr(transport, "metrics"):
+            return transport.metrics
+        return None
 
     @property
     def version(self) -> str:

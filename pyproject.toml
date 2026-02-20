@@ -25,16 +25,23 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+httpx = [
+    "httpx[http2]>=0.25.0",
+]
 dev = [
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",
     "ruff>=0.8.0",
     "black>=23.0.0",
     "mypy>=1.0.0",
+    "httpx[http2]>=0.25.0",
 ]
 benchmark = [
     "tabulate>=0.9.0",
 ]
+
+[project.scripts]
+odoorpc-init-config = "odoorpc_toolbox.config_generator:main"
 
 [project.urls]
 Homepage = "https://github.com/equitania/odoorpc-toolbox"

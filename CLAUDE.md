@@ -4,12 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**odoorpc-toolbox** is a Python package providing helper functions and a fully internalized OdooRPC implementation for Odoo server operations. JSON-RPC 2.0 protocol, TTL cache, batch writes, native search_read, MCP-compatible introspection.
+**odoorpc-toolbox** is a Python package providing helper functions and a fully internalized OdooRPC implementation for Odoo server operations. JSON-RPC 2.0 protocol, TTL cache, batch writes, native search_read, MCP-compatible introspection, pluggable transport layer (urllib/httpx), retry with exponential backoff, request metrics.
 
 - **Author**: Equitania Software GmbH
 - **License**: GNU Affero General Public License v3
 - **Python**: >= 3.10
-- **Current Version**: 0.6.0
+- **Current Version**: 0.7.0
 
 ## Development Commands
 
@@ -33,7 +33,7 @@ python -c "from odoorpc_toolbox import EqOdooConnection; print('OK')"
 ### Three-Tier Test Architecture
 
 ```bash
-# Unit tests (no Odoo required) - 145 tests
+# Unit tests (no Odoo required) - 227 tests
 pytest tests/ -m "not integration"
 
 # Integration tests (live Odoo required) - 60 tests
@@ -66,17 +66,20 @@ Benchmarks compare v0.6.0 optimized code against simulated v0.5.1 behavior (`ben
 
 ```
 odoorpc_toolbox/
-├── odoo_connection.py   # Base OdooConnection - YAML config, auth, HTTPS detection
+├── odoo_connection.py   # Base OdooConnection - YAML config, auth, HTTPS detection, transport config
 ├── base_helper.py       # EqOdooConnection - 20+ helper methods with cache
 ├── cache.py             # TTLCache - thread-safe LRU+TTL cache for lookups
 ├── batch.py             # batch_write - context manager for batched field writes
-├── odoo.py              # ODOO class - internalized OdooRPC (JSON-RPC 2.0)
+├── odoo.py              # ODOO class - internalized OdooRPC (JSON-RPC 2.0), transport parameter
 ├── environment.py       # Environment + Model registry
 ├── model.py             # Model proxy + Recordset (MetaModel metaclass)
 ├── fields.py            # 14 field type descriptors
 ├── introspection.py     # MCP-compatible method discovery (JSON Schema)
+├── config_generator.py  # generate_config() + CLI entry point (odoorpc-init-config)
 ├── exceptions.py        # Unified exception hierarchy
 └── rpc/                 # JSON-RPC 2.0 protocol layer
+    ├── transport.py     # Transport abstraction (UrllibTransport, HttpxTransport, create_transport)
+    ├── metrics.py       # RequestMetrics + MetricsTransport decorator
 ```
 
 ### Key Monkey-Patch Targets (for benchmarks)
@@ -96,6 +99,34 @@ Server:
   password: pw
   database: db
   protocol: jsonrpc            # jsonrpc or jsonrpc+ssl
+
+# Optional extended sections (v0.7.0)
+transport:
+  backend: auto              # "auto", "urllib", or "httpx"
+  http2: true
+  pool_connections: 10
+
+retry:
+  max_attempts: 3
+  backoff_factor: 0.5
+  retry_on: [502, 503, 504]
+
+timeout:
+  connect: 30
+  read: 120
+
+cache:
+  maxsize: 256
+  ttl: 3600
+```
+
+### Config Generator CLI
+
+```bash
+odoorpc-init-config                          # Create odoo_config.yaml with all sections
+odoorpc-init-config -o custom.yaml           # Custom output path
+odoorpc-init-config --minimal                # Server section only
+odoorpc-init-config --url http://localhost --port 8069 --database mydb
 ```
 
 ## Version-Specific Logic

@@ -1,0 +1,38 @@
+# OdooRPC Toolbox - Full Configuration Example
+# All sections active with recommended production values.
+# Documentation: https://github.com/equitania/odoorpc-toolbox
+
+# Server connection (required)
+Server:
+  url: https://odoo.example.com
+  port: 443
+  user: admin
+  password: secret
+  database: production_db
+  protocol: jsonrpc+ssl
+
+# Transport backend - httpx with HTTP/2 and connection pooling
+# Requires: pip install odoorpc-toolbox[httpx]
+transport:
+  backend: httpx
+  http2: true
+  pool_connections: 10
+
+# Retry with exponential backoff for transient errors
+retry:
+  max_attempts: 3
+  backoff_factor: 0.5
+  retry_on:
+    - 502
+    - 503
+    - 504
+
+# Timeout settings
+timeout:
+  connect: 30
+  read: 120
+
+# Cache for repeated lookups (countries, states, UoMs)
+cache:
+  maxsize: 512
+  ttl: 7200
