@@ -134,3 +134,9 @@ dmypy.json
 .vscode
 .vscode/settings.json
 
+# Benchmark results (credentials + machine-specific)
+benchmark_results/
+
+# Integration test config (contains credentials)
+yaml_examples/test_config.yaml
+

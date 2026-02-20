@@ -1,0 +1,17 @@
+# Odoo test instance configuration
+# Copy this file to test_config.yaml and adjust values:
+#   cp yaml_examples/test_config.yaml.example yaml_examples/test_config.yaml
+#
+# Required: Odoo 18 Community with demo data enabled.
+# Required modules: base, product, sale, contacts
+# Optional modules: stock (orderpoint tests), l10n_de (German state tests)
+#
+# Start Odoo:
+#   cd v18/v18-dev/dev18_native && ./start-native.sh -d odoorpc_test
+Server:
+  url: http://localhost
+  port: 8069
+  user: admin
+  password: admin
+  database: odoorpc_test
+  protocol: jsonrpc

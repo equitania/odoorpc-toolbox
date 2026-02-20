@@ -32,6 +32,9 @@ dev = [
     "black>=23.0.0",
     "mypy>=1.0.0",
 ]
+benchmark = [
+    "tabulate>=0.9.0",
+]
 
 [project.urls]
 Homepage = "https://github.com/equitania/odoorpc-toolbox"
@@ -79,3 +82,8 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
+markers = [
+    "integration: Tests requiring a live Odoo instance",
+    "benchmark: Performance benchmark tests",
+    "slow: Slow tests (bulk operations, large datasets)",
+]
