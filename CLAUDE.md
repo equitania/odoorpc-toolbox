@@ -4,12 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**odoorpc-toolbox** is a Python package providing helper functions and utilities for Odoo server operations (OdooRPC functionality internalized). It simplifies common Odoo operations like partner management, state/country lookups, file operations, and sequence management.
+**odoorpc-toolbox** is a Python package providing helper functions and a fully internalized OdooRPC implementation for Odoo server operations. JSON-RPC 2.0 protocol, TTL cache, batch writes, native search_read, MCP-compatible introspection.
 
 - **Author**: Equitania Software GmbH
 - **License**: GNU Affero General Public License v3
 - **Python**: >= 3.10
-- **Current Version**: 0.5.1
+- **Current Version**: 0.6.0
 
 ## Development Commands
 
@@ -18,77 +18,91 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 uv venv && source .venv/bin/activate.fish  # Fish shell
 # Or with aliases: venv+
 
-# Install package in editable mode with dev dependencies
-uv pip install -e ".[dev]"
+# Install package in editable mode with all dependencies
+uv pip install -e ".[dev,benchmark]"
 
 # Build package for PyPI
 uv build
 
-# Run from installed package
+# Verify installation
 python -c "from odoorpc_toolbox import EqOdooConnection; print('OK')"
 ```
+
+## Testing
+
+### Three-Tier Test Architecture
+
+```bash
+# Unit tests (no Odoo required) - 145 tests
+pytest tests/ -m "not integration"
+
+# Integration tests (live Odoo required) - 60 tests
+ODOO_TEST_CONFIG=yaml_examples/test_config.yaml pytest tests/integration/ -v
+
+# Benchmarks (live Odoo required) - 16 scenarios
+ODOO_TEST_CONFIG=yaml_examples/test_config.yaml pytest benchmarks/ -v
+
+# Quick benchmarks (skip bulk scaling)
+ODOO_TEST_CONFIG=yaml_examples/test_config.yaml pytest benchmarks/ -m "benchmark and not slow" -v
+
+# Quality checks
+ruff check . && black --check .
+```
+
+### Integration Test Setup
+
+1. Copy `yaml_examples/test_config.yaml.example` to `yaml_examples/test_config.yaml`
+2. Adjust URL, port, credentials, database name
+3. Requires: Odoo 18 Community with demo data, modules: base, product, sale, contacts
+4. Test data is automatically cleaned up via `TestDataManager`
+
+### Benchmark Approach (Option B: Baseline Simulation)
+
+Benchmarks compare v0.6.0 optimized code against simulated v0.5.1 behavior (`benchmarks/baselines.py`). All baselines use direct `execute_kw` calls to reproduce the old multi-RPC patterns.
+
+**Important**: First model access triggers implicit `fields_get` RPC. Always warmup before measurement.
 
 ## Architecture
 
 ```
 odoorpc_toolbox/
-├── odoo_connection.py   # Base OdooConnection class - handles YAML config, connection setup, authentication
-└── base_helper.py       # EqOdooConnection class - extends base with helper methods for Odoo operations
+├── odoo_connection.py   # Base OdooConnection - YAML config, auth, HTTPS detection
+├── base_helper.py       # EqOdooConnection - 20+ helper methods with cache
+├── cache.py             # TTLCache - thread-safe LRU+TTL cache for lookups
+├── batch.py             # batch_write - context manager for batched field writes
+├── odoo.py              # ODOO class - internalized OdooRPC (JSON-RPC 2.0)
+├── environment.py       # Environment + Model registry
+├── model.py             # Model proxy + Recordset (MetaModel metaclass)
+├── fields.py            # 14 field type descriptors
+├── introspection.py     # MCP-compatible method discovery (JSON Schema)
+├── exceptions.py        # Unified exception hierarchy
+└── rpc/                 # JSON-RPC 2.0 protocol layer
 ```
 
-### Class Hierarchy
+### Key Monkey-Patch Targets (for benchmarks)
 
-1. **OdooConnection** (`odoo_connection.py`): Base connection class
-   - Reads YAML configuration (Server: url, port, user, password, database, protocol)
-   - Auto-detects HTTPS and adjusts protocol/port
-   - Sets `auto_commit=True`, `active_test=False`, `tracking_disable=True`
-   - Stores `odoo_version` as integer for version-specific logic
-
-2. **EqOdooConnection** (`base_helper.py`): Extended class with helper methods
-   - Partner operations: `get_res_partner_id()`, `get_res_partner_category_id()`, `get_res_partner_title_id()`
-   - Location operations: `get_state_id()`, `extract_street_address_part()`
-   - Sequence operations: `get_ir_sequence_number_next_actual()`, `set_ir_sequence_number_next_actual()`
-   - File operations: `get_picture()` (BASE64 encoding)
-   - Product operations: `get_product_uom_id()`, `set_stock_warehouse_orderpoint()`
-   - Utility: `check_if_company_exists()`, `string_contains_numbers()`
+| Target | Location | Purpose |
+|--------|----------|---------|
+| `ODOO.json()` | `odoo.py:138` | Single choke-point for ALL RPC calls |
+| `TTLCache.get()` | `cache.py:48` | Cache hit/miss tracking |
 
 ## Configuration
 
-YAML configuration file structure (see `yaml_examples/config.yaml`):
-
 ```yaml
 Server:
-  url: https://odoo.com       # Server URL (http:// or https://)
-  port: 443                   # Port (443 for SSL, 8069 for local)
-  user: admin                 # Username
-  password: pw                # Password
-  database: db                # Database name
-  protocol: jsonrpc           # jsonrpc or jsonrpc+ssl
-```
-
-## Usage Example
-
-```python
-from odoorpc_toolbox import EqOdooConnection
-
-connection = EqOdooConnection('config.yaml')
-
-# Partner operations
-partner_ids = connection.get_res_partner_id(customerno="CUST001")
-category_id = connection.get_res_partner_category_id("Retail")
-
-# Location operations
-state_id = connection.get_state_id(country_id=21, state_name="California")
-street, house_no = connection.extract_street_address_part("123 Main Street")
-
-# File operations
-image_data = connection.get_picture("/path/to/image.jpg")
+  url: https://odoo.com       # http:// or https:// (auto-detected)
+  port: 443                   # 443 for SSL, 8069 for local
+  user: admin
+  password: pw
+  database: db
+  protocol: jsonrpc            # jsonrpc or jsonrpc+ssl
 ```
 
 ## Version-Specific Logic
 
-The package handles Odoo version differences automatically:
 - `get_product_uom_id()`: Uses `product.uom` for v10-12, `uom.uom` for v13+
+- `odoo.py login()`: Uses `/jsonrpc` for Odoo 10+
+- Report download: Odoo 14+ requires CSRF token (NotImplementedError)
 
 ## Git Commit Conventions
 
