@@ -1,6 +1,6 @@
 # Release Notes
 
-## Version 0.7.0 (12.03.2026)
+## Version 0.7.1 (12.03.2026)
 
 ### Added
 - Odoo 19+ JSON-2 API support: version-based routing for `execute()` and `execute_kw()`
