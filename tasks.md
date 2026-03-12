@@ -126,6 +126,31 @@
 - [ ] **`auto_commit` Validierung** - `tools.py`: Akzeptiert `True`, `False`, `"deferred"`
 - [ ] **Tests** - `test_prefetch.py`, erweiterte `test_batch.py`
 
+### Phase 3.1: Odoo 19+ JSON-2 API Schnelllösung → v0.7.1 ✅
+
+- [x] **Login-Weiche für Odoo 19+** - `/web/session/authenticate` statt deprecated `/jsonrpc` für Login
+- [x] **`_json2_call()` Methode** - Plain JSON POST an `/json/2/<model>/<method>` ohne JSON-RPC 2.0 Envelope
+- [x] **Version-Weiche `execute_kw()`** - Odoo ≥19 → JSON-2 API, ≤18 → Legacy `/jsonrpc`
+- [x] **Version-Weiche `execute()`** - Analog zu `execute_kw()`
+- [x] **`_use_json2` Property** - Zentrale Version-Prüfung `v(self.version)[0] >= 19`
+- [x] **Deprecation-Logging** - Info-Log nach Login auf Odoo 19+ mit Hinweis auf DB/Report Legacy
+- [x] **DB-Service Hinweis** - TODO-Kommentar in `db.py` für Legacy-Endpoint-Nutzung
+- [x] **14 neue Unit-Tests** - Version-Weiche, Login-Pfade, JSON-2 Format, Error-Handling, DB-Service
+
+### Phase 4: Odoo 19+ JSON-2 API Vollunterstützung → v0.9.0
+
+- [ ] **API-Key Authentication** - `Authorization: Bearer <key>` Header, YAML-Config `api_key` Feld, neben Session-Auth
+- [ ] **DB-Service JSON-2 Migration** - Neue Endpoints für `list`/`create`/`drop`/`dump`/`restore` recherchieren und implementieren
+- [ ] **Report-Service JSON-2 Migration** - Report-Download über JSON-2 API (ersetzt aktuelles `NotImplementedError` für Odoo ≥14)
+- [ ] **HTTP Status Code Handling** - Echte Error Codes (404, 403, 500) in Exception-Hierarchie (`exceptions.py`) mappen
+- [ ] **API-Only Users** - Support für eingeschränkte Bot-Accounts ohne Login/Password
+- [ ] **`/web/version` Endpoint** - Primäre Version-Detection für Odoo 19+ (Fallback auf `/web/webclient/version_info`)
+- [ ] **Response-Format Anpassung** - JSON-2 gibt direkte Ergebnisse zurück (kein `{"result": ...}` Wrapper bei manchen Calls)
+- [ ] **Named Parameters** - Positionale → Named Parameter Migration für bessere Performance
+- [ ] **Integration Tests gegen Odoo 19** - Vollständige Verifizierung aller JSON-2 Pfade
+- [ ] **Benchmarks JSON-2 vs Legacy** - Performance-Vergleich `/json/2/` vs `/jsonrpc`
+- [ ] **Legacy-Endpoint Entfernung** - `/jsonrpc` Code entfernen wenn Odoo 20 Minimum wird (frühestens Herbst 2026)
+
 ---
 
 ## Performance & Architecture Roadmap (EN)
@@ -164,3 +189,28 @@
 - [ ] **Flush trigger** - Before RPC calls in `Model.__getattr__` automatically commit dirty records
 - [ ] **`auto_commit` validation** - `tools.py`: Accepts `True`, `False`, `"deferred"`
 - [ ] **Tests** - `test_prefetch.py`, extended `test_batch.py`
+
+### Phase 3.1: Odoo 19+ JSON-2 API Quick Fix → v0.7.1 ✅
+
+- [x] **Login switch for Odoo 19+** - `/web/session/authenticate` instead of deprecated `/jsonrpc` for login
+- [x] **`_json2_call()` method** - Plain JSON POST to `/json/2/<model>/<method>` without JSON-RPC 2.0 envelope
+- [x] **Version switch `execute_kw()`** - Odoo ≥19 → JSON-2 API, ≤18 → legacy `/jsonrpc`
+- [x] **Version switch `execute()`** - Same as `execute_kw()`
+- [x] **`_use_json2` property** - Central version check `v(self.version)[0] >= 19`
+- [x] **Deprecation logging** - Info log after login on Odoo 19+ noting DB/Report legacy usage
+- [x] **DB service note** - TODO comment in `db.py` for legacy endpoint usage
+- [x] **14 new unit tests** - Version switch, login paths, JSON-2 format, error handling, DB service
+
+### Phase 4: Odoo 19+ JSON-2 API Full Support → v0.9.0
+
+- [ ] **API key authentication** - `Authorization: Bearer <key>` header, YAML config `api_key` field, alongside session auth
+- [ ] **DB service JSON-2 migration** - Research and implement new endpoints for `list`/`create`/`drop`/`dump`/`restore`
+- [ ] **Report service JSON-2 migration** - Report download via JSON-2 API (replaces current `NotImplementedError` for Odoo ≥14)
+- [ ] **HTTP status code handling** - Map real error codes (404, 403, 500) to exception hierarchy (`exceptions.py`)
+- [ ] **API-only users** - Support for restricted bot accounts without login/password
+- [ ] **`/web/version` endpoint** - Primary version detection for Odoo 19+ (fallback to `/web/webclient/version_info`)
+- [ ] **Response format adaptation** - JSON-2 returns direct results (no `{"result": ...}` wrapper on some calls)
+- [ ] **Named parameters** - Positional → named parameter migration for better performance
+- [ ] **Integration tests against Odoo 19** - Full verification of all JSON-2 paths
+- [ ] **Benchmarks JSON-2 vs legacy** - Performance comparison `/json/2/` vs `/jsonrpc`
+- [ ] **Legacy endpoint removal** - Remove `/jsonrpc` code when Odoo 20 becomes minimum (earliest Fall 2026)

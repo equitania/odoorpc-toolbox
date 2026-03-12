@@ -4,6 +4,11 @@ Provides functionalities such as list, create, drop, dump,
 duplicate and restore databases.
 
 Originally from OdooRPC (LGPL-3.0), modernized for Python 3.10+.
+
+NOTE: DB service still uses the legacy /jsonrpc endpoint even on Odoo 19+,
+as the JSON-2 API does not provide equivalent database management endpoints.
+This will be addressed in Phase 4 (v0.9.0) when Odoo documents the
+replacement for DB service operations.
 """
 
 from __future__ import annotations

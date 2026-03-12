@@ -3,11 +3,16 @@
 This is the internalized equivalent of odoorpc.ODOO, providing the same
 API for connection, authentication, and RPC execution.
 
+Supports both legacy JSON-RPC (/jsonrpc, Odoo <= 18) and
+JSON-2 API (/json/2/, Odoo >= 19).
+
 Originally from OdooRPC (LGPL-3.0), modernized for Python 3.10+.
 """
 
 from __future__ import annotations
 
+import json
+import logging
 from typing import Any
 
 from odoorpc_toolbox import exceptions, session
@@ -17,6 +22,8 @@ from odoorpc_toolbox.report import Report
 from odoorpc_toolbox.rpc import PROTOCOLS
 from odoorpc_toolbox.rpc import errors as rpc_errors
 from odoorpc_toolbox.tools import Config, v
+
+logger = logging.getLogger(__name__)
 
 
 class ODOO:
@@ -184,8 +191,55 @@ class ODOO:
         if not self._env or not self._password or not self._login:
             raise exceptions.InternalError("Login required")
 
+    @property
+    def _use_json2(self) -> bool:
+        """Return True if the server supports JSON-2 API (Odoo >= 19)."""
+        return v(self.version)[0] >= 19
+
+    def _json2_call(self, model: str, method: str, args: list | None = None, kwargs: dict | None = None) -> Any:
+        """Execute a JSON-2 API call (Odoo 19+).
+
+        Sends a plain JSON POST to /json/2/<model>/<method> without the
+        JSON-RPC 2.0 envelope. Authentication is handled via session cookie
+        (set during /web/session/authenticate login).
+
+        Args:
+            model: The Odoo model name.
+            method: The method name.
+            args: Positional arguments list.
+            kwargs: Keyword arguments dictionary.
+
+        Returns:
+            The result of the method call.
+
+        Raises:
+            RPCError: If the response contains an error.
+        """
+        url = f"/json/2/{model}/{method}"
+        payload: dict[str, Any] = {}
+        if args:
+            payload["args"] = args
+        if kwargs:
+            payload["kwargs"] = kwargs
+
+        response = self._connector.proxy_http(
+            url,
+            data=json.dumps(payload),
+            headers={"Content-Type": "application/json"},
+        )
+        result = json.loads(response.body.decode("utf-8"))
+        if isinstance(result, dict) and result.get("error"):
+            error_data = result["error"]
+            message = error_data.get("message", str(error_data))
+            raise exceptions.RPCError(message, error_data)
+        return result
+
     def login(self, db: str, login: str = "admin", password: str = "admin") -> None:
         """Log in to the Odoo server.
+
+        For Odoo >= 19, uses /web/session/authenticate to avoid the
+        deprecated /jsonrpc endpoint. For Odoo 10-18, uses the legacy
+        /jsonrpc service dispatch. For Odoo < 10, uses /web/session/authenticate.
 
         Args:
             db: Database name.
@@ -195,7 +249,20 @@ class ODOO:
         Raises:
             RPCError: If login fails.
         """
-        if v(self.version)[0] >= 10:
+        if self._use_json2:
+            # Odoo 19+: use /web/session/authenticate (avoids deprecated /jsonrpc)
+            data = self.json(
+                "/web/session/authenticate",
+                {"db": db, "login": login, "password": password},
+            )
+            uid = data["result"]["uid"]
+            if uid:
+                context = data["result"].get("user_context", {})
+                context["uid"] = uid
+            else:
+                raise exceptions.RPCError("Wrong login ID or password")
+        elif v(self.version)[0] >= 10:
+            # Odoo 10-18: legacy /jsonrpc service dispatch
             data = self.json(
                 "/jsonrpc",
                 params={
@@ -205,32 +272,39 @@ class ODOO:
                 },
             )
             uid = data["result"]
+            if not uid:
+                raise exceptions.RPCError("Wrong login ID or password")
+            args_to_send = [db, uid, password, "res.users", "context_get"]
+            context = self.json(
+                "/jsonrpc",
+                {
+                    "service": "object",
+                    "method": "execute",
+                    "args": args_to_send,
+                },
+            )["result"]
+            context["uid"] = uid
         else:
+            # Odoo < 10
             data = self.json(
                 "/web/session/authenticate",
                 {"db": db, "login": login, "password": password},
             )
             uid = data["result"]["uid"]
+            if not uid:
+                raise exceptions.RPCError("Wrong login ID or password")
+            context = data["result"]["user_context"]
 
-        if uid:
-            if v(self.version)[0] >= 10:
-                args_to_send = [db, uid, password, "res.users", "context_get"]
-                context = self.json(
-                    "/jsonrpc",
-                    {
-                        "service": "object",
-                        "method": "execute",
-                        "args": args_to_send,
-                    },
-                )["result"]
-                context["uid"] = uid
-            else:
-                context = data["result"]["user_context"]
-            self._env = Environment(self, db, uid, context=context)
-            self._login = login
-            self._password = password
-        else:
-            raise exceptions.RPCError("Wrong login ID or password")
+        self._env = Environment(self, db, uid, context=context)
+        self._login = login
+        self._password = password
+
+        if self._use_json2:
+            logger.info(
+                "Connected to Odoo %s using JSON-2 API. "
+                "Note: DB and Report services still use legacy /jsonrpc endpoint.",
+                self.version,
+            )
 
     def logout(self) -> bool:
         """Log out the user.
@@ -256,6 +330,9 @@ class ODOO:
     def execute(self, model: str, method: str, *args) -> Any:
         """Execute a method of a model.
 
+        For Odoo >= 19, uses the JSON-2 API endpoint /json/2/<model>/<method>.
+        For older versions, uses the legacy /jsonrpc service dispatch.
+
         Args:
             model: The Odoo model name.
             method: The method name.
@@ -265,6 +342,8 @@ class ODOO:
             The result of the method call.
         """
         self._check_logged_user()
+        if self._use_json2:
+            return self._json2_call(model, method, args=list(args))
         args_to_send = [
             self.env.db,
             self.env.uid,
@@ -288,6 +367,9 @@ class ODOO:
     ) -> Any:
         """Execute a method of a model with keyword arguments.
 
+        For Odoo >= 19, uses the JSON-2 API endpoint /json/2/<model>/<method>.
+        For older versions, uses the legacy /jsonrpc service dispatch.
+
         Args:
             model: The Odoo model name.
             method: The method name.
@@ -300,6 +382,8 @@ class ODOO:
         self._check_logged_user()
         args = args or []
         kwargs = kwargs or {}
+        if self._use_json2:
+            return self._json2_call(model, method, args=args, kwargs=kwargs)
         args_to_send = [
             self.env.db,
             self.env.uid,
