@@ -193,8 +193,27 @@ class ODOO:
 
     @property
     def _use_json2(self) -> bool:
-        """Return True if the server supports JSON-2 API (Odoo >= 19)."""
-        return v(self.version)[0] >= 19
+        """Return True if the server supports JSON-2 API (Odoo >= 19).
+
+        Currently disabled: The /json/2/ endpoint requires Bearer token
+        authentication (Authorization: bearer <API_KEY>), not session
+        cookies. The current implementation uses session cookie auth
+        from /web/session/authenticate, which causes 401 UNAUTHORIZED.
+
+        To re-enable, the following changes are needed:
+        - Support API key auth via Authorization header
+        - Add X-Odoo-Database header for multi-DB instances
+        - Convert all args to named parameters (JSON-2 requirement)
+        - Handle direct JSON responses (no JSON-RPC 2.0 envelope)
+
+        The legacy /jsonrpc endpoint is deprecated in v19 but functional.
+        Scheduled for removal in Odoo v20.
+
+        See: https://www.odoo.com/documentation/19.0/developer/reference/external_api.html
+        """
+        # TODO: Implement Bearer token auth for JSON-2 API (Phase 4)
+        # return v(self.version)[0] >= 19
+        return False
 
     def _json2_call(self, model: str, method: str, args: list | None = None, kwargs: dict | None = None) -> Any:
         """Execute a JSON-2 API call (Odoo 19+).
