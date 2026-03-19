@@ -1,5 +1,19 @@
 # Release Notes
 
+## Version 0.7.2 (19.03.2026)
+
+### Added
+- N/A
+
+### Changed
+- N/A
+
+### Fixed
+- Disable JSON-2 API (`_use_json2` always returns `False`): `/json/2/` endpoint requires Bearer token auth, not session cookies — caused HTTP 401 on Odoo 19 instances
+- Version bump to 0.7.2 so `pip install --upgrade` picks up the fix (0.7.1 was published with JSON-2 enabled)
+- Updated 6 unit tests to reflect disabled JSON-2 API (v19/v20 now use legacy `/jsonrpc`)
+- Updated module docstring in `odoo.py` to document JSON-2 as disabled
+
 ## Version 0.7.1 (12.03.2026)
 
 ### Added

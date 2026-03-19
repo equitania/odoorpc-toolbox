@@ -3,8 +3,8 @@
 This is the internalized equivalent of odoorpc.ODOO, providing the same
 API for connection, authentication, and RPC execution.
 
-Supports both legacy JSON-RPC (/jsonrpc, Odoo <= 18) and
-JSON-2 API (/json/2/, Odoo >= 19).
+Supports JSON-RPC (/jsonrpc) for all Odoo versions.
+JSON-2 API (/json/2/, Odoo >= 19) is currently disabled (requires Bearer token auth).
 
 Originally from OdooRPC (LGPL-3.0), modernized for Python 3.10+.
 """
