@@ -15,6 +15,23 @@ import random
 from odoorpc_toolbox.rpc.transport import TransportResponse, UrllibTransport
 
 LOG_HIDDEN_JSON_PARAMS = ["password"]
+# Positional `args` indices containing credentials for known (service, method)
+# pairs sent via the legacy /jsonrpc service dispatch. Use "*" as method to
+# apply the masking to every method of a service (default-deny for db service).
+LOG_HIDDEN_ARG_INDICES: dict[tuple[str, str], tuple[int, ...]] = {
+    ("common", "login"): (2,),
+    ("common", "authenticate"): (2,),
+    ("object", "execute"): (2,),
+    ("object", "execute_kw"): (2,),
+    ("db", "dump"): (0,),
+    ("db", "change_admin_password"): (0, 1),
+    ("db", "create_database"): (0, 4),
+    ("db", "drop"): (0,),
+    ("db", "duplicate_database"): (0,),
+    ("db", "restore"): (0,),
+    ("db", "*"): (0,),
+}
+LOG_REDACTED = "**********"
 LOG_JSON_SEND_MSG = "(JSON,send) %(url)s %(data)s"
 LOG_JSON_RECV_MSG = "(JSON,recv) %(url)s %(data)s => %(result)s"
 LOG_HTTP_SEND_MSG = "(HTTP,send) %(url)s%(data)s"
@@ -42,14 +59,46 @@ def decode_data(data) -> io.StringIO:
 
 
 def get_json_log_data(data: dict) -> dict:
-    """Return a copy of `data` with sensitive params hidden for logging."""
-    log_data = data
-    for param in LOG_HIDDEN_JSON_PARAMS:
-        if param in data.get("params", {}):
-            if log_data is data:
-                log_data = copy.deepcopy(data)
-            log_data["params"][param] = "**********"
-    return log_data
+    """Return a copy of `data` with sensitive params hidden for logging.
+
+    Masks two shapes of credentials:
+    - Named params listed in LOG_HIDDEN_JSON_PARAMS (e.g. ``password`` in
+      ``/web/session/authenticate`` calls).
+    - Positional ``args`` entries for known ``(service, method)`` pairs sent
+      via the legacy ``/jsonrpc`` dispatch (see LOG_HIDDEN_ARG_INDICES). This
+      covers ``service=common method=login`` (args[2] = password),
+      ``service=object`` execute/execute_kw (args[2] = password), and
+      ``service=db`` management calls (args[0] = master password).
+    """
+    log_data: dict | None = None  # lazily deep-copied when first redaction is needed
+
+    def _ensure_copy() -> dict:
+        nonlocal log_data
+        if log_data is None:
+            log_data = copy.deepcopy(data)
+        return log_data
+
+    params = data.get("params")
+
+    if isinstance(params, dict):
+        for param in LOG_HIDDEN_JSON_PARAMS:
+            if param in params:
+                _ensure_copy()["params"][param] = LOG_REDACTED
+
+        args = params.get("args")
+        if isinstance(args, list):
+            service = params.get("service")
+            method = params.get("method")
+            indices = LOG_HIDDEN_ARG_INDICES.get((service, method))
+            if indices is None and service is not None:
+                indices = LOG_HIDDEN_ARG_INDICES.get((service, "*"))
+            if indices:
+                masked_args = _ensure_copy()["params"]["args"]
+                for idx in indices:
+                    if 0 <= idx < len(masked_args) and masked_args[idx] is not None:
+                        masked_args[idx] = LOG_REDACTED
+
+    return log_data if log_data is not None else data
 
 
 class Proxy:

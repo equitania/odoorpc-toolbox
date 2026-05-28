@@ -1,5 +1,14 @@
 # Release Notes
 
+## Version 0.7.3 (28.05.2026)
+
+### Security
+- **HIGH**: Fix plaintext password leak in DEBUG logs for legacy `/jsonrpc` calls. The existing `LOG_HIDDEN_JSON_PARAMS` masking only covered named params (`/web/session/authenticate`); positional `args` lists used by `service=common method=login`, `service=object` execute/execute_kw, and all `service=db` methods passed credentials through to `logger.debug` unredacted. Affects the default code path for Odoo 10–18 logins. (`odoorpc_toolbox/rpc/jsonrpc.py`)
+
+### Added
+- `LOG_HIDDEN_ARG_INDICES` mapping for `(service, method) → args indices` redaction in `get_json_log_data()`, with a default-deny wildcard `("db", "*")` so unknown db-service methods still mask `args[0]`
+- 9 new unit tests covering login, execute_kw, db dump, db change_admin_password, db create_database, unknown db method fallback, and the combined named+positional case
+
 ## Version 0.7.2 (19.03.2026)
 
 ### Added
