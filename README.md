@@ -17,7 +17,7 @@ Ein Python-Paket mit Hilfsfunktionen und vollständig internalisierter OdooRPC-I
 **Autor**: Equitania Software GmbH - Pforzheim - Germany
 **Lizenz**: GNU Affero General Public License v3
 **Python**: >= 3.10
-**Version**: 0.7.4
+**Version**: 0.8.0
 
 ### Funktionen
 
@@ -233,6 +233,36 @@ print(f"Fehler: {metrics.total_errors}")
 print(f"Durchschnitt: {metrics.avg_time_ms:.1f} ms")
 ```
 
+### JSON-2 API mit API-Key (Odoo 19+, v0.8.0)
+
+Ab Odoo 19 nutzt odoorpc-toolbox automatisch die JSON-2 API
+(`/json/2/<model>/<method>`) mit Bearer-Token-Authentifizierung.
+
+```yaml
+Server:
+  url: https://odoo19.example.com
+  port: 443
+  user: admin
+  api_key: IHR_API_KEY        # Settings -> Users -> API Keys -> New
+  database: mydb
+  protocol: jsonrpc+ssl
+```
+
+- **API-Key**: In Odoo unter Einstellungen → Benutzer → eigener Benutzer →
+  API-Schlüssel erzeugen. Das `api_key`-Feld hat Vorrang vor `password`;
+  ein API-Key im `password`-Feld funktioniert weiterhin (Abwärtskompatibilität).
+- **API-only Benutzer**: Bot-Accounts ohne Passwort werden unterstützt —
+  der Login läuft komplett über den API-Key (`res.users/context_get`).
+- **Named Parameters**: Bekannte ORM-Methoden (search, read, write, …) werden
+  automatisch von positionalen auf benannte Parameter gemappt; unbekannte
+  Methoden mit positionalen Argumenten fallen mit DeprecationWarning auf das
+  Legacy-`/jsonrpc` zurück (Entfernung in Odoo 22, Herbst 2028).
+- **DB-Service**: `db.list()` und `db.dump()` nutzen ab v19 die
+  `/web/database/*`-Controller; die übrigen DB-Operationen bleiben auf
+  `/jsonrpc` (DeprecationWarning ab v19).
+- **Report-Download**: Für Odoo ≥ 14 weiterhin nicht über die externe API
+  möglich (CSRF/Session erforderlich) — die Fehlermeldung nennt Workarounds.
+
 ### MCP-Introspektion
 
 ```python
@@ -301,7 +331,7 @@ A Python package providing helper functions and a fully internalized OdooRPC imp
 **Author**: Equitania Software GmbH - Pforzheim - Germany
 **License**: GNU Affero General Public License v3
 **Python**: >= 3.10
-**Version**: 0.7.4
+**Version**: 0.8.0
 
 ### Features
 
@@ -516,6 +546,36 @@ print(f"Requests: {metrics.total_requests}")
 print(f"Errors: {metrics.total_errors}")
 print(f"Average: {metrics.avg_time_ms:.1f} ms")
 ```
+
+### JSON-2 API with API Key (Odoo 19+, v0.8.0)
+
+Starting with Odoo 19, odoorpc-toolbox automatically uses the JSON-2 API
+(`/json/2/<model>/<method>`) with Bearer token authentication.
+
+```yaml
+Server:
+  url: https://odoo19.example.com
+  port: 443
+  user: admin
+  api_key: YOUR_API_KEY       # Settings -> Users -> API Keys -> New
+  database: mydb
+  protocol: jsonrpc+ssl
+```
+
+- **API key**: Generate in Odoo under Settings → Users → your user →
+  API Keys. The `api_key` field takes precedence over `password`; an API
+  key placed in the `password` field keeps working (backward compatibility).
+- **API-only users**: Bot accounts without a password are supported - login
+  runs entirely on the API key (`res.users/context_get` bootstrap).
+- **Named parameters**: Known ORM methods (search, read, write, ...) are
+  mapped automatically from positional to named parameters; unknown methods
+  with positional arguments fall back to the legacy `/jsonrpc` endpoint with
+  a DeprecationWarning (removal scheduled for Odoo 22, fall 2028).
+- **DB service**: `db.list()` and `db.dump()` use the `/web/database/*`
+  controllers on v19+; the remaining DB operations stay on `/jsonrpc`
+  (DeprecationWarning on v19+).
+- **Report download**: Still not possible via the external API for
+  Odoo >= 14 (CSRF/session required) - the error message lists workarounds.
 
 ### MCP Introspection
 

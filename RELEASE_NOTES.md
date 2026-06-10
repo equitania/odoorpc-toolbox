@@ -1,5 +1,36 @@
 # Release Notes
 
+## Version 0.8.0 (10.06.2026)
+
+**Odoo 19+ JSON-2 API Full Support (Phase 4)**
+
+### Added
+- API key authentication for Odoo 19+: `Authorization: bearer <key>` header (lowercase scheme per Odoo docs), new `api_key` parameter on `ODOO.login()` and `api_key` field in the YAML `Server` section (takes precedence over `password`; an API key in the `password` field keeps working)
+- JSON-2 login bootstrap via `/json/2/res.users/context_get` - no login round-trip, supports API-only bot accounts; uid fallback via `res.users/search` when the context does not expose it
+- `_map_args_to_json2()` mapping table translating positional arguments of known ORM methods (search, search_read, read, write, create, unlink, ...) into JSON-2 named parameters; unmappable positional calls fall back to legacy `/jsonrpc` with a DeprecationWarning
+- HTTP status mapping for JSON-2: 4xx/5xx responses raise `RPCError` carrying the server error payload plus `status_code` in `.info`
+- `X-Odoo-Database` header on JSON-2 requests (multi-database deployments)
+- `/web/version` as primary version detection (plain GET, Odoo 19+), fallback to `/web/webclient/version_info`
+- DB service on Odoo 19+: `db.list()` uses `/web/database/list`, `db.dump()` uses `/web/database/backup` (raw binary, no base64 round-trip)
+- `counting_json2()` benchmark counter (patches `odoo.json` AND `odoo._json2_call`), `legacy_execute_kw()` baseline, new `benchmarks/test_bench_json2.py`
+- Odoo 19 integration test suite `tests/integration/test_int_json2.py` with `ODOO19_TEST_CONFIG` fixtures and `odoo19` marker; `yaml_examples/test_config_v19.yaml.example`
+- `odoorpc-init-config --api-key` CLI option and `api_key` parameter in `generate_config()`
+- 35 new unit tests (Bearer headers, status mapping, api_key precedence, parameter mapping, DB routing, transport error handling)
+
+### Changed
+- `_use_json2` re-enabled: returns True for Odoo >= 19 (was hardcoded False since 0.7.2)
+- `_json2_call()` is kwargs-only (JSON-2 has no positional calling convention) and sends a flat parameter body - the previous `{"args": ..., "kwargs": ...}` wrapper was never accepted by the endpoint
+- `UrllibTransport` returns HTTP 4xx/5xx as `TransportResponse` instead of raising `urllib.error.HTTPError` (matches HttpxTransport; root cause of the 0.7.2 JSON-2 deactivation)
+- Legacy `/jsonrpc` calls use the API key in the password slot when one is configured (Odoo accepts API keys as RPC passwords)
+- DB operations without a machine-readable controller contract (create/drop/duplicate/restore/change_password) stay on `/jsonrpc` and emit a DeprecationWarning on Odoo 19+ - the `/web/database/*` form controllers return errors as HTTP 200 HTML pages
+- `report.download()` on Odoo >= 14 raises `NotImplementedError` with an actionable message (reason + workarounds) instead of a terse one-liner
+- Corrected `/jsonrpc` EOL in all comments and docs: removal is scheduled for Odoo 22 (fall 2028), not Odoo 20
+- Roadmap remapped: Phase 4 shipped as v0.8.0, Smart ORM (Phase 3) moves to v0.9.0
+
+### Fixed
+- JSON-2 calls no longer fail with unhandled `urllib.error.HTTPError` on auth errors
+- Example config `config_full.yaml` uses `CHANGE_ME` placeholder instead of `secret`
+
 ## Version 0.7.4 (10.06.2026)
 
 ### Security
