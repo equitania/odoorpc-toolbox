@@ -99,6 +99,36 @@ class TestUrllibTransport:
         assert result.body == b'{"result": "ok"}'
         mock_opener.open.assert_called_once()
 
+    def test_http_error_returned_as_response(self):
+        """HTTP 4xx/5xx must be returned as TransportResponse, not raised.
+
+        The JSON-2 API (Odoo 19+) signals errors via status codes; callers
+        map them to exceptions themselves.
+        """
+        import urllib.error
+        from email.message import Message
+        from io import BytesIO
+
+        error_headers = Message()
+        error_headers["Content-Type"] = "application/json; charset=utf-8"
+        http_error = urllib.error.HTTPError(
+            url="http://localhost:8069/json/2/res.partner/search",
+            code=401,
+            msg="Unauthorized",
+            hdrs=error_headers,
+            fp=BytesIO(b'{"message": "Invalid apikey"}'),
+        )
+        mock_opener = MagicMock()
+        mock_opener.open.side_effect = http_error
+
+        transport = UrllibTransport(opener=mock_opener)
+        result = transport.request("http://localhost:8069/json/2/res.partner/search", data=b"{}")
+
+        assert isinstance(result, TransportResponse)
+        assert result.status_code == 401
+        assert result.body == b'{"message": "Invalid apikey"}'
+        assert result.headers["Content-Type"].startswith("application/json")
+
     def test_request_with_headers(self):
         mock_response = MagicMock()
         mock_response.read.return_value = b"{}"

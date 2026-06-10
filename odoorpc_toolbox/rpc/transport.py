@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json as json_mod
 import time
+import urllib.error
 from dataclasses import dataclass, field
 from http.cookiejar import CookieJar
 from typing import Protocol, runtime_checkable
@@ -109,6 +110,9 @@ class UrllibTransport:
 
         Returns:
             TransportResponse with status, body, and headers.
+            HTTP error statuses (4xx/5xx) are returned as responses, not
+            raised, matching the HttpxTransport behavior so callers can map
+            status codes to exceptions themselves.
         """
         req = Request(url=url, data=data)
         if headers:
@@ -119,7 +123,13 @@ class UrllibTransport:
         if timeout is not None:
             kwargs["timeout"] = timeout
 
-        response = self._opener.open(req, **kwargs)
+        try:
+            response = self._opener.open(req, **kwargs)
+        except urllib.error.HTTPError as exc:
+            # exc.read() is single-use - read once and store
+            body = exc.read()
+            resp_headers = {k: v for k, v in exc.headers.items()} if exc.headers else {}
+            return TransportResponse(status_code=exc.code, body=body, headers=resp_headers)
         body = response.read()
         status_code = response.getcode() or 200
         resp_headers = {k: v for k, v in response.headers.items()}
