@@ -367,8 +367,9 @@ class ODOO:
         the API key). When no explicit ``api_key`` is given and the server
         rejects the password as Bearer token (real passwords are not valid
         API keys), login falls back to the deprecated /jsonrpc dispatch.
-        For Odoo 10-18, uses the legacy /jsonrpc service dispatch.
-        For Odoo < 10, uses /web/session/authenticate.
+        For Odoo 10-18, uses the legacy /jsonrpc service dispatch; an
+        explicit ``api_key`` is used as password substitute (valid since
+        Odoo 14). For Odoo < 10, uses /web/session/authenticate.
 
         Args:
             db: Database name.
@@ -426,9 +427,12 @@ class ODOO:
                 self._api_key = key
             context["uid"] = uid
         elif v(self.version)[0] >= 10:
-            # Odoo 10-18: legacy /jsonrpc service dispatch
-            uid, context = self._legacy_jsonrpc_login(db, login, password)
+            # Odoo 10-18: legacy /jsonrpc service dispatch. API keys are
+            # valid password substitutes for RPC since Odoo 14, so an
+            # explicit api_key takes precedence here too.
+            uid, context = self._legacy_jsonrpc_login(db, login, api_key or password)
             context["uid"] = uid
+            self._api_key = api_key
         else:
             # Odoo < 10
             data = self.json(

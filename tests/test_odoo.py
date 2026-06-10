@@ -393,6 +393,26 @@ class TestODOOJson2API:
         assert first_call[0][1]["service"] == "common"
 
     @patch("odoorpc_toolbox.odoo.PROTOCOLS")
+    def test_login_v18_api_key_used_as_password_substitute(self, mock_protocols):
+        """On Odoo 10-18 an explicit api_key is sent in the password slot."""
+        odoo, mock_connector = self._make_odoo(mock_protocols, "18.0")
+        mock_connector.proxy_json.side_effect = [
+            {"result": 2},
+            {"result": {"lang": "en_US"}},
+        ]
+        odoo.login("testdb", "admin", "ignored_password", api_key="v18_key")
+
+        first_call = mock_connector.proxy_json.call_args_list[0]
+        assert first_call[0][1]["args"] == ["testdb", "admin", "v18_key"]
+        assert odoo._use_json2 is False  # version < 19 regardless of key
+
+        # Subsequent execute_kw also uses the api_key in the password slot
+        mock_connector.proxy_json.side_effect = None
+        mock_connector.proxy_json.return_value = {"result": [1]}
+        odoo.execute_kw("res.partner", "search", [[]])
+        assert mock_connector.proxy_json.call_args[0][1]["args"][2] == "v18_key"
+
+    @patch("odoorpc_toolbox.odoo.PROTOCOLS")
     def test_logout_resets_api_key(self, mock_protocols):
         odoo, mock_connector = self._make_odoo(mock_protocols, "19.0")
         self._login_v19(odoo, mock_connector)

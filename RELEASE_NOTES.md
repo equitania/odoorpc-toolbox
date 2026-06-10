@@ -5,7 +5,8 @@
 ### Fixed
 - **Regression**: Password-based login on Odoo 19+ was broken in 0.8.0. Real passwords are not valid Bearer tokens, so the JSON-2 bootstrap failed with HTTP 401 "Invalid apikey" - while the same credentials worked before 0.8.0 via the legacy `/jsonrpc` login. Now: when no explicit `api_key` is given and the server rejects the credential with 401/403, `login()` falls back to the legacy `/jsonrpc` dispatch (works until Odoo 22) and logs a warning recommending an API key. An explicitly passed invalid `api_key` still raises (no silent fallback).
 - `_use_json2` now requires both Odoo >= 19 AND a stored API key: password-authenticated sessions route `execute`/`execute_kw` over legacy `/jsonrpc` instead of crashing on the missing Bearer token.
-- Verified live against Odoo 19: both paths (password fallback with warning, API key via JSON-2) work; new unit tests and integration test cover the fallback.
+- On Odoo 10-18 an explicit `api_key` (parameter or YAML field) was silently ignored; it is now used as password substitute in the legacy `/jsonrpc` login (API keys are valid RPC credentials since Odoo 14), making the `api_key` semantics consistent across all versions.
+- Verified live against Odoo 18 AND Odoo 19: password login, token-as-password, and explicit api_key all work on both versions; new unit tests and integration test cover the fallback.
 
 ## Version 0.8.0 (10.06.2026)
 
