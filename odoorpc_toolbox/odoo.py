@@ -3,8 +3,10 @@
 This is the internalized equivalent of odoorpc.ODOO, providing the same
 API for connection, authentication, and RPC execution.
 
-Supports JSON-RPC (/jsonrpc) for all Odoo versions.
-JSON-2 API (/json/2/, Odoo >= 19) is currently disabled (requires Bearer token auth).
+Supports JSON-RPC (/jsonrpc) for all Odoo versions and the JSON-2 API
+(/json/2/<model>/<method>) with Bearer token authentication for Odoo >= 19.
+The legacy /jsonrpc endpoint is deprecated and scheduled for removal in
+Odoo 22 (fall 2028).
 
 Originally from OdooRPC (LGPL-3.0), modernized for Python 3.10+.
 """
@@ -13,6 +15,7 @@ from __future__ import annotations
 
 import json
 import logging
+import warnings
 from typing import Any
 
 from odoorpc_toolbox import exceptions, session
@@ -24,6 +27,81 @@ from odoorpc_toolbox.rpc import errors as rpc_errors
 from odoorpc_toolbox.tools import Config, v
 
 logger = logging.getLogger(__name__)
+
+# Positional-argument names of common ORM methods, used to translate legacy
+# execute/execute_kw positional calls into JSON-2 named parameters (the JSON-2
+# API has no positional calling convention). Record-bound methods start with
+# "ids"; the remaining ones are @api.model methods. Source: Odoo 19 ORM
+# signatures. Unknown methods fall back to the legacy /jsonrpc endpoint.
+_JSON2_METHOD_PARAMS: dict[str, tuple[str, ...]] = {
+    "search": ("domain", "offset", "limit", "order"),
+    "search_count": ("domain", "limit"),
+    "search_read": ("domain", "fields", "offset", "limit", "order"),
+    "name_search": ("name", "domain", "operator", "limit"),
+    "name_create": ("name",),
+    "create": ("vals_list",),
+    "default_get": ("fields_list",),
+    "fields_get": ("allfields", "attributes"),
+    "read": ("ids", "fields", "load"),
+    "write": ("ids", "vals"),
+    "unlink": ("ids",),
+    "copy": ("ids", "default"),
+    "exists": ("ids",),
+    "name_get": ("ids",),
+}
+
+
+def _normalize_json2_result(method: str, args: list, kwargs: dict, result: Any) -> Any:
+    """Restore legacy execute_kw return shapes where JSON-2 differs.
+
+    create(): the legacy /jsonrpc dispatch returns a single id for a dict
+    input, but JSON-2 serializes the created recordset as a list of ids.
+    Callers (and this package's own helpers) rely on the legacy shape.
+    """
+    if method == "create" and isinstance(result, list) and len(result) == 1:
+        vals = args[0] if args else kwargs.get("vals_list")
+        if isinstance(vals, dict):
+            return result[0]
+    return result
+
+
+def _map_args_to_json2(method: str, args: list, kwargs: dict) -> dict | None:
+    """Translate positional arguments into JSON-2 named parameters.
+
+    Returns the flat parameter dict for the JSON-2 request body, or None
+    when the positional arguments cannot be mapped (unknown method, too many
+    arguments, or a parameter given both positionally and by name) - in that
+    case the caller falls back to the legacy /jsonrpc endpoint.
+    """
+    if not args:
+        return dict(kwargs)
+    names = _JSON2_METHOD_PARAMS.get(method)
+    if names is None or len(args) > len(names):
+        return None
+    payload = dict(zip(names, args, strict=False))
+    if payload.keys() & kwargs.keys():
+        return None
+    payload.update(kwargs)
+    return payload
+
+
+def _parse_json2_error(body: bytes) -> tuple[str, dict]:
+    """Parse a JSON-2 error response body.
+
+    The JSON-2 API returns errors as HTTP 4xx/5xx with a JSON object body
+    of shape {"name", "message", "arguments", "context", "debug"}.
+
+    Returns:
+        Tuple of (message, error_dict). Falls back to the raw body text
+        when the body is not valid JSON.
+    """
+    try:
+        obj = json.loads(body.decode("utf-8"))
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return body.decode("utf-8", errors="replace"), {}
+    if isinstance(obj, dict):
+        return obj.get("message", str(obj)), obj
+    return str(obj), {}
 
 
 class ODOO:
@@ -79,6 +157,7 @@ class ODOO:
         self._env: Environment | None = None
         self._login: str | None = None
         self._password: str | None = None
+        self._api_key: str | None = None
         self._db = DB(self)
         self._report = Report(self)
 
@@ -188,98 +267,144 @@ class ODOO:
 
     def _check_logged_user(self) -> None:
         """Check if a user is logged in."""
-        if not self._env or not self._password or not self._login:
+        if not self._env or not (self._password or self._api_key) or not self._login:
             raise exceptions.InternalError("Login required")
 
     @property
+    def _rpc_credential(self) -> str | None:
+        """Credential for the password slot of legacy /jsonrpc calls.
+
+        Odoo accepts API keys in place of passwords for RPC, so the API key
+        is preferred when set (e.g. for the legacy fallback on Odoo 19+).
+        """
+        return self._api_key or self._password
+
+    @property
     def _use_json2(self) -> bool:
-        """Return True if the server supports JSON-2 API (Odoo >= 19).
+        """Return True if the server supports the JSON-2 API (Odoo >= 19).
 
-        Currently disabled: The /json/2/ endpoint requires Bearer token
-        authentication (Authorization: bearer <API_KEY>), not session
-        cookies. The current implementation uses session cookie auth
-        from /web/session/authenticate, which causes 401 UNAUTHORIZED.
-
-        To re-enable, the following changes are needed:
-        - Support API key auth via Authorization header
-        - Add X-Odoo-Database header for multi-DB instances
-        - Convert all args to named parameters (JSON-2 requirement)
-        - Handle direct JSON responses (no JSON-RPC 2.0 envelope)
-
-        The legacy /jsonrpc endpoint is deprecated in v19 but functional.
-        Scheduled for removal in Odoo v20.
+        The /json/2/<model>/<method> endpoint uses Bearer token
+        authentication (Authorization: bearer <API_KEY>) and named
+        parameters only. The legacy /jsonrpc endpoint is deprecated and
+        scheduled for removal in Odoo 22 (fall 2028).
 
         See: https://www.odoo.com/documentation/19.0/developer/reference/external_api.html
         """
-        # TODO: Implement Bearer token auth for JSON-2 API (Phase 4)
-        # return v(self.version)[0] >= 19
-        return False
+        return v(self.version)[0] >= 19
 
-    def _json2_call(self, model: str, method: str, args: list | None = None, kwargs: dict | None = None) -> Any:
+    def _json2_call(
+        self,
+        model: str,
+        method: str,
+        kwargs: dict | None = None,
+        *,
+        _api_key: str | None = None,
+        _db: str | None = None,
+    ) -> Any:
         """Execute a JSON-2 API call (Odoo 19+).
 
         Sends a plain JSON POST to /json/2/<model>/<method> without the
-        JSON-RPC 2.0 envelope. Authentication is handled via session cookie
-        (set during /web/session/authenticate login).
+        JSON-RPC 2.0 envelope. Authentication uses the API key as Bearer
+        token in the Authorization header.
 
         Args:
             model: The Odoo model name.
             method: The method name.
-            args: Positional arguments list.
-            kwargs: Keyword arguments dictionary.
+            kwargs: Named method parameters (JSON-2 has no positional
+                arguments). Record IDs go into the special "ids" key, an
+                optional context into the "context" key.
+            _api_key: API key override for the login bootstrap (before
+                self._api_key is set).
+            _db: Database name override for the login bootstrap (before
+                self._env is set).
 
         Returns:
-            The result of the method call.
+            The JSON-serialized return value of the called method (the
+            JSON-2 API returns direct results, no {"result": ...} wrapper).
 
         Raises:
-            RPCError: If the response contains an error.
+            RPCError: On HTTP 4xx/5xx, carrying the server's error payload
+                plus "status_code" in the info dict.
+            InternalError: If no API key is available.
         """
+        key = _api_key or self._api_key
+        if not key:
+            raise exceptions.InternalError("JSON-2 API requires an API key (Bearer token); none is configured")
         url = f"/json/2/{model}/{method}"
-        payload: dict[str, Any] = {}
-        if args:
-            payload["args"] = args
-        if kwargs:
-            payload["kwargs"] = kwargs
+        payload: dict[str, Any] = dict(kwargs) if kwargs else {}
 
-        response = self._connector.proxy_http(
-            url,
-            data=json.dumps(payload),
-            headers={"Content-Type": "application/json"},
-        )
-        result = json.loads(response.body.decode("utf-8"))
-        if isinstance(result, dict) and result.get("error"):
-            error_data = result["error"]
-            message = error_data.get("message", str(error_data))
-            raise exceptions.RPCError(message, error_data)
-        return result
+        # The headers dict carries the Bearer token - it must never be
+        # logged (ProxyHTTP logs bodies as size summaries only, no headers).
+        headers = {
+            "Content-Type": "application/json; charset=utf-8",
+            "Authorization": f"bearer {key}",  # lowercase scheme per Odoo docs
+        }
+        db = _db or (self._env.db if self._env else None)
+        if db:
+            headers["X-Odoo-Database"] = db
 
-    def login(self, db: str, login: str = "admin", password: str = "admin") -> None:
+        response = self._connector.proxy_http(url, data=json.dumps(payload), headers=headers)
+        if response.status_code >= 400:
+            message, error_data = _parse_json2_error(response.body)
+            raise exceptions.RPCError(message, {**error_data, "status_code": response.status_code})
+        return json.loads(response.body.decode("utf-8"))
+
+    def login(
+        self,
+        db: str,
+        login: str = "admin",
+        password: str = "admin",
+        api_key: str | None = None,
+    ) -> None:
         """Log in to the Odoo server.
 
-        For Odoo >= 19, uses /web/session/authenticate to avoid the
-        deprecated /jsonrpc endpoint. For Odoo 10-18, uses the legacy
-        /jsonrpc service dispatch. For Odoo < 10, uses /web/session/authenticate.
+        For Odoo >= 19, uses the JSON-2 API with Bearer token auth: the API
+        key (or the password field, which Odoo accepts as API key for
+        backward compatibility) is the complete credential - there is no
+        login round-trip. The user context and uid are bootstrapped via
+        res.users/context_get (the current user is derived server-side from
+        the API key). For Odoo 10-18, uses the legacy /jsonrpc service
+        dispatch. For Odoo < 10, uses /web/session/authenticate.
 
         Args:
             db: Database name.
             login: Username (default: 'admin').
-            password: Password (default: 'admin').
+            password: Password (default: 'admin'). On Odoo >= 19 this value
+                is used as API key when ``api_key`` is not given.
+            api_key: Odoo API key for Bearer auth (Odoo >= 19). Takes
+                precedence over ``password`` for the JSON-2 API.
 
         Raises:
             RPCError: If login fails.
         """
+        self._api_key = None
         if self._use_json2:
-            # Odoo 19+: use /web/session/authenticate (avoids deprecated /jsonrpc)
-            data = self.json(
-                "/web/session/authenticate",
-                {"db": db, "login": login, "password": password},
-            )
-            uid = data["result"]["uid"]
-            if uid:
-                context = data["result"].get("user_context", {})
-                context["uid"] = uid
-            else:
-                raise exceptions.RPCError("Wrong login ID or password")
+            # Odoo 19+: JSON-2 API, Bearer token auth. Bootstrap the user
+            # context via res.users/context_get; validates the key (401 on
+            # invalid key) and works for API-only bot accounts too.
+            key = api_key or password
+            context = self._json2_call("res.users", "context_get", kwargs={}, _api_key=key, _db=db)
+            if not isinstance(context, dict):
+                raise exceptions.RPCError(f"Unexpected context_get response from JSON-2 API: {context!r}")
+            context = dict(context)
+            uid = context.get("uid")
+            if not uid:
+                # context_get did not expose the uid - resolve via login name
+                ids = self._json2_call(
+                    "res.users",
+                    "search",
+                    kwargs={"domain": [["login", "=", login]], "limit": 1},
+                    _api_key=key,
+                    _db=db,
+                )
+                uid = ids[0] if ids else None
+            if not uid:
+                raise exceptions.RPCError(
+                    "Could not determine the user id via the JSON-2 API "
+                    "(context_get returned no uid and no user matches the given login)"
+                )
+            context["uid"] = uid
+            self._api_key = key
         elif v(self.version)[0] >= 10:
             # Odoo 10-18: legacy /jsonrpc service dispatch
             data = self.json(
@@ -320,8 +445,7 @@ class ODOO:
 
         if self._use_json2:
             logger.info(
-                "Connected to Odoo %s using JSON-2 API. "
-                "Note: DB and Report services still use legacy /jsonrpc endpoint.",
+                "Connected to Odoo %s using the JSON-2 API (Bearer token auth).",
                 self.version,
             )
 
@@ -338,6 +462,7 @@ class ODOO:
         self._env = None
         self._login = None
         self._password = None
+        self._api_key = None
         return True
 
     def close(self) -> bool:
@@ -362,11 +487,14 @@ class ODOO:
         """
         self._check_logged_user()
         if self._use_json2:
-            return self._json2_call(model, method, args=list(args))
+            # JSON-2 has no positional calling convention - delegate to
+            # execute_kw, which maps known ORM methods to named parameters
+            # and falls back to the legacy endpoint otherwise.
+            return self.execute_kw(model, method, args=list(args))
         args_to_send = [
             self.env.db,
             self.env.uid,
-            self._password,
+            self._rpc_credential,
             model,
             method,
         ]
@@ -402,11 +530,22 @@ class ODOO:
         args = args or []
         kwargs = kwargs or {}
         if self._use_json2:
-            return self._json2_call(model, method, args=args, kwargs=kwargs)
+            payload = _map_args_to_json2(method, args, kwargs)
+            if payload is not None:
+                result = self._json2_call(model, method, kwargs=payload)
+                return _normalize_json2_result(method, args, kwargs, result)
+            warnings.warn(
+                f"Method '{model}.{method}' called with positional arguments that "
+                "cannot be mapped to JSON-2 named parameters; falling back to the "
+                "deprecated /jsonrpc endpoint (scheduled for removal in Odoo 22, "
+                "fall 2028). Pass named parameters (kwargs) instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
         args_to_send = [
             self.env.db,
             self.env.uid,
-            self._password,
+            self._rpc_credential,
             model,
             method,
         ]
@@ -437,8 +576,10 @@ class ODOO:
             "protocol": self.protocol,
             "port": self.port,
             "timeout": self.config["timeout"],
+            # API keys round-trip via the passwd slot: ODOO.load() passes it
+            # as password, which login() uses as API key on Odoo >= 19.
             "user": self._login,
-            "passwd": self._password,
+            "passwd": self._api_key or self._password,
             "database": self.env.db,
         }
         session.save(name, data, rc_file)

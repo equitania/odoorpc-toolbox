@@ -7,6 +7,8 @@ These methods can be accessed from the connectors of this module.
 Originally from OdooRPC (LGPL-3.0), modernized for Python 3.10+.
 """
 
+import json
+
 from odoorpc_toolbox.rpc import errors, jsonrpc
 from odoorpc_toolbox.rpc.transport import UrllibTransport
 
@@ -98,11 +100,21 @@ class ConnectorJSONRPC(Connector):
             ssl=self.ssl,
             transport=self._transport,
         )
-        # Detect the server version
+        # Detect the server version. /web/version (plain GET, Odoo >= 19) is
+        # preferred; older servers answer 404 there, so fall back to the
+        # JSON-RPC /web/webclient/version_info endpoint.
         if self.version is None:
-            result = proxy_json("/web/webclient/version_info")["result"]
-            if "server_version" in result:
-                self.version = result["server_version"]
+            try:
+                response = proxy_http("/web/version")
+                if response.status_code == 200:
+                    ver_data = json.loads(response.body.decode("utf-8"))
+                    self.version = ver_data.get("version") or None
+            except Exception:
+                self.version = None
+            if self.version is None:
+                result = proxy_json("/web/webclient/version_info")["result"]
+                if "server_version" in result:
+                    self.version = result["server_version"]
         return proxy_json, proxy_http
 
     @property
