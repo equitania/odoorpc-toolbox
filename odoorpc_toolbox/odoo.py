@@ -281,16 +281,17 @@ class ODOO:
 
     @property
     def _use_json2(self) -> bool:
-        """Return True if the server supports the JSON-2 API (Odoo >= 19).
+        """Return True when JSON-2 routing is active: Odoo >= 19 AND an API key is set.
 
         The /json/2/<model>/<method> endpoint uses Bearer token
         authentication (Authorization: bearer <API_KEY>) and named
-        parameters only. The legacy /jsonrpc endpoint is deprecated and
-        scheduled for removal in Odoo 22 (fall 2028).
+        parameters only. Real passwords are NOT valid Bearer tokens, so
+        password-authenticated sessions on Odoo 19+ stay on the deprecated
+        /jsonrpc endpoint (scheduled for removal in Odoo 22, fall 2028).
 
         See: https://www.odoo.com/documentation/19.0/developer/reference/external_api.html
         """
-        return v(self.version)[0] >= 19
+        return v(self.version)[0] >= 19 and self._api_key is not None
 
     def _json2_call(
         self,
@@ -359,18 +360,21 @@ class ODOO:
         """Log in to the Odoo server.
 
         For Odoo >= 19, uses the JSON-2 API with Bearer token auth: the API
-        key (or the password field, which Odoo accepts as API key for
-        backward compatibility) is the complete credential - there is no
-        login round-trip. The user context and uid are bootstrapped via
+        key (or the password field, which doubles as API key for backward
+        compatibility) is the complete credential - there is no login
+        round-trip. The user context and uid are bootstrapped via
         res.users/context_get (the current user is derived server-side from
-        the API key). For Odoo 10-18, uses the legacy /jsonrpc service
-        dispatch. For Odoo < 10, uses /web/session/authenticate.
+        the API key). When no explicit ``api_key`` is given and the server
+        rejects the password as Bearer token (real passwords are not valid
+        API keys), login falls back to the deprecated /jsonrpc dispatch.
+        For Odoo 10-18, uses the legacy /jsonrpc service dispatch.
+        For Odoo < 10, uses /web/session/authenticate.
 
         Args:
             db: Database name.
             login: Username (default: 'admin').
             password: Password (default: 'admin'). On Odoo >= 19 this value
-                is used as API key when ``api_key`` is not given.
+                is tried as API key when ``api_key`` is not given.
             api_key: Odoo API key for Bearer auth (Odoo >= 19). Takes
                 precedence over ``password`` for the JSON-2 API.
 
@@ -378,55 +382,52 @@ class ODOO:
             RPCError: If login fails.
         """
         self._api_key = None
-        if self._use_json2:
+        if v(self.version)[0] >= 19:
             # Odoo 19+: JSON-2 API, Bearer token auth. Bootstrap the user
             # context via res.users/context_get; validates the key (401 on
             # invalid key) and works for API-only bot accounts too.
             key = api_key or password
-            context = self._json2_call("res.users", "context_get", kwargs={}, _api_key=key, _db=db)
-            if not isinstance(context, dict):
-                raise exceptions.RPCError(f"Unexpected context_get response from JSON-2 API: {context!r}")
-            context = dict(context)
-            uid = context.get("uid")
-            if not uid:
-                # context_get did not expose the uid - resolve via login name
-                ids = self._json2_call(
-                    "res.users",
-                    "search",
-                    kwargs={"domain": [["login", "=", login]], "limit": 1},
-                    _api_key=key,
-                    _db=db,
-                )
-                uid = ids[0] if ids else None
-            if not uid:
-                raise exceptions.RPCError(
-                    "Could not determine the user id via the JSON-2 API "
-                    "(context_get returned no uid and no user matches the given login)"
-                )
+            try:
+                context = self._json2_call("res.users", "context_get", kwargs={}, _api_key=key, _db=db)
+            except exceptions.RPCError as exc:
+                status = exc.info.get("status_code") if isinstance(exc.info, dict) else None
+                if api_key is None and status in (401, 403):
+                    # The password field holds a real password, not an API
+                    # key - fall back to the deprecated /jsonrpc login.
+                    logger.warning(
+                        "Password authentication on Odoo %s uses the deprecated "
+                        "/jsonrpc endpoint (removal in Odoo 22, fall 2028). "
+                        "Configure an API key (Server.api_key) to use the JSON-2 API.",
+                        self.version,
+                    )
+                    uid, context = self._legacy_jsonrpc_login(db, login, password)
+                else:
+                    raise
+            else:
+                if not isinstance(context, dict):
+                    raise exceptions.RPCError(f"Unexpected context_get response from JSON-2 API: {context!r}")
+                context = dict(context)
+                uid = context.get("uid")
+                if not uid:
+                    # context_get did not expose the uid - resolve via login name
+                    ids = self._json2_call(
+                        "res.users",
+                        "search",
+                        kwargs={"domain": [["login", "=", login]], "limit": 1},
+                        _api_key=key,
+                        _db=db,
+                    )
+                    uid = ids[0] if ids else None
+                if not uid:
+                    raise exceptions.RPCError(
+                        "Could not determine the user id via the JSON-2 API "
+                        "(context_get returned no uid and no user matches the given login)"
+                    )
+                self._api_key = key
             context["uid"] = uid
-            self._api_key = key
         elif v(self.version)[0] >= 10:
             # Odoo 10-18: legacy /jsonrpc service dispatch
-            data = self.json(
-                "/jsonrpc",
-                params={
-                    "service": "common",
-                    "method": "login",
-                    "args": [db, login, password],
-                },
-            )
-            uid = data["result"]
-            if not uid:
-                raise exceptions.RPCError("Wrong login ID or password")
-            args_to_send = [db, uid, password, "res.users", "context_get"]
-            context = self.json(
-                "/jsonrpc",
-                {
-                    "service": "object",
-                    "method": "execute",
-                    "args": args_to_send,
-                },
-            )["result"]
+            uid, context = self._legacy_jsonrpc_login(db, login, password)
             context["uid"] = uid
         else:
             # Odoo < 10
@@ -448,6 +449,40 @@ class ODOO:
                 "Connected to Odoo %s using the JSON-2 API (Bearer token auth).",
                 self.version,
             )
+
+    def _legacy_jsonrpc_login(self, db: str, login: str, password: str) -> tuple[int, dict]:
+        """Log in via the legacy /jsonrpc service dispatch (Odoo 10+).
+
+        Also used as fallback on Odoo 19+ when the credential is a real
+        password (not a valid Bearer token). Deprecated server-side,
+        scheduled for removal in Odoo 22 (fall 2028).
+
+        Returns:
+            Tuple of (uid, context).
+
+        Raises:
+            RPCError: If login fails.
+        """
+        data = self.json(
+            "/jsonrpc",
+            params={
+                "service": "common",
+                "method": "login",
+                "args": [db, login, password],
+            },
+        )
+        uid = data["result"]
+        if not uid:
+            raise exceptions.RPCError("Wrong login ID or password")
+        context = self.json(
+            "/jsonrpc",
+            {
+                "service": "object",
+                "method": "execute",
+                "args": [db, uid, password, "res.users", "context_get"],
+            },
+        )["result"]
+        return uid, context
 
     def logout(self) -> bool:
         """Log out the user.

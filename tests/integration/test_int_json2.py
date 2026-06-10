@@ -40,6 +40,31 @@ class TestJson2Login:
         result = odoo19.execute_kw("res.users", "read", args=[[odoo19.env.uid], ["login"]])
         assert result and result[0]["id"] == odoo19.env.uid
 
+    def test_real_password_falls_back_to_legacy_login(self, odoo19_config_path):
+        """Login with a real password (no api_key) works via /jsonrpc fallback.
+
+        Real passwords are not valid Bearer tokens; the 401 from the JSON-2
+        bootstrap must trigger the legacy login so existing password-based
+        configs keep working on Odoo 19.
+        """
+        import yaml
+
+        from odoorpc_toolbox.odoo import ODOO
+
+        with open(odoo19_config_path, encoding="utf-8") as fh:
+            server = yaml.safe_load(fh)["Server"]
+        if not server.get("password"):
+            pytest.skip("No password in v19 test config")
+        url = server["url"].replace("https://", "").replace("http://", "").strip("/")
+        protocol = "jsonrpc+ssl" if server["url"].startswith("https") else "jsonrpc"
+        odoo = ODOO(url, protocol=protocol, port=server["port"])
+        odoo.login(server["database"], server["user"], server["password"])
+        assert odoo.env.uid
+        assert odoo._api_key is None
+        assert odoo._use_json2 is False
+        count = odoo.execute_kw("res.partner", "search_count", kwargs={"domain": []})
+        assert isinstance(count, int)
+
     def test_invalid_api_key_raises(self, odoo19_config_path):
         """A wrong API key fails the bootstrap with RPCError (HTTP 401)."""
         import yaml

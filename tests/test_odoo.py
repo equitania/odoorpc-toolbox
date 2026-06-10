@@ -220,13 +220,21 @@ class TestODOOJson2API:
     # ---- Feature flag ----
 
     @patch("odoorpc_toolbox.odoo.PROTOCOLS")
-    def test_use_json2_enabled_for_v19(self, mock_protocols):
+    def test_use_json2_false_before_login_v19(self, mock_protocols):
+        """JSON-2 routing requires an API key - inactive before login."""
         odoo, _ = self._make_odoo(mock_protocols, "19.0")
+        assert odoo._use_json2 is False
+
+    @patch("odoorpc_toolbox.odoo.PROTOCOLS")
+    def test_use_json2_enabled_after_api_key_login_v19(self, mock_protocols):
+        odoo, mock_connector = self._make_odoo(mock_protocols, "19.0")
+        self._login_v19(odoo, mock_connector)
         assert odoo._use_json2 is True
 
     @patch("odoorpc_toolbox.odoo.PROTOCOLS")
-    def test_use_json2_enabled_for_v20(self, mock_protocols):
-        odoo, _ = self._make_odoo(mock_protocols, "20.0")
+    def test_use_json2_enabled_after_api_key_login_v20(self, mock_protocols):
+        odoo, mock_connector = self._make_odoo(mock_protocols, "20.0")
+        self._login_v19(odoo, mock_connector)
         assert odoo._use_json2 is True
 
     @patch("odoorpc_toolbox.odoo.PROTOCOLS")
@@ -319,6 +327,57 @@ class TestODOOJson2API:
 
         headers = mock_connector.proxy_http.call_args[1]["headers"]
         assert headers["Authorization"] == "bearer real_key"
+
+    @patch("odoorpc_toolbox.odoo.PROTOCOLS")
+    def test_login_v19_real_password_falls_back_to_jsonrpc(self, mock_protocols):
+        """A real password (rejected as Bearer token with 401) falls back to legacy login.
+
+        Regression test: before this fallback, password users who worked on
+        v19 via /jsonrpc were broken by the JSON-2 activation.
+        """
+        odoo, mock_connector = self._make_odoo(mock_protocols, "19.0")
+        # JSON-2 bootstrap rejects the password as API key
+        mock_connector.proxy_http.return_value = TransportResponse(
+            status_code=401,
+            headers={},
+            body=json.dumps({"name": "x", "message": "Invalid apikey", "arguments": []}).encode("utf-8"),
+        )
+        # Legacy /jsonrpc login succeeds
+        mock_connector.proxy_json.side_effect = [
+            {"result": 2},
+            {"result": {"lang": "en_US"}},
+        ]
+        odoo.login("testdb", "admin", "admin")
+
+        assert odoo.env.uid == 2
+        assert odoo._api_key is None
+        assert odoo._use_json2 is False
+        first_legacy = mock_connector.proxy_json.call_args_list[0]
+        assert first_legacy[0][0] == "/jsonrpc"
+        assert first_legacy[0][1]["service"] == "common"
+
+        # Subsequent execute_kw stays on legacy /jsonrpc with the password
+        mock_connector.proxy_json.side_effect = None
+        mock_connector.proxy_json.return_value = {"result": [1]}
+        assert odoo.execute_kw("res.partner", "search", [[]]) == [1]
+        last_call = mock_connector.proxy_json.call_args
+        assert last_call[0][0] == "/jsonrpc"
+        assert last_call[0][1]["args"][2] == "admin"
+
+    @patch("odoorpc_toolbox.odoo.PROTOCOLS")
+    def test_login_v19_explicit_bad_api_key_does_not_fall_back(self, mock_protocols):
+        """An explicitly given invalid api_key raises - no silent password fallback."""
+        from odoorpc_toolbox.exceptions import RPCError
+
+        odoo, mock_connector = self._make_odoo(mock_protocols, "19.0")
+        mock_connector.proxy_http.return_value = TransportResponse(
+            status_code=401,
+            headers={},
+            body=json.dumps({"name": "x", "message": "Invalid apikey", "arguments": []}).encode("utf-8"),
+        )
+        with pytest.raises(RPCError, match="Invalid apikey"):
+            odoo.login("testdb", "admin", "admin", api_key="explicit_bad_key")
+        mock_connector.proxy_json.assert_not_called()
 
     @patch("odoorpc_toolbox.odoo.PROTOCOLS")
     def test_login_v18_uses_jsonrpc(self, mock_protocols):

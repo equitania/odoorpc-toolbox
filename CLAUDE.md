@@ -9,7 +9,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Author**: Equitania Software GmbH
 - **License**: GNU Affero General Public License v3
 - **Python**: >= 3.10
-- **Current Version**: 0.8.0
+- **Current Version**: 0.8.1
 
 ## Development Commands
 
