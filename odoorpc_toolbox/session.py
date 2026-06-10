@@ -6,7 +6,6 @@ Originally from OdooRPC (LGPL-3.0), modernized for Python 3.10+.
 """
 
 import os
-import stat
 from configparser import ConfigParser
 from typing import Any
 
@@ -69,15 +68,23 @@ def get(name: str, rc_file: str = "~/.odoorpcrc") -> dict[str, Any]:
 def _write_rc_file(conf: ConfigParser, rc_path: str) -> None:
     """Write the RC file with owner-only permissions (0o600).
 
-    The file stores cleartext passwords. Creating it via os.open with an
-    explicit mode avoids the race window between file creation under the
-    process umask and a subsequent chmod; the final chmod also tightens
-    permissions on pre-existing files.
+    The file stores cleartext passwords. The content is written to a
+    temporary file created with mode 0o600 and atomically moved into
+    place, so the target is never readable by other users - not even
+    briefly when it pre-existed with a wider mode.
     """
-    fd = os.open(rc_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    with os.fdopen(fd, "w") as file_:
-        conf.write(file_)
-    os.chmod(rc_path, stat.S_IREAD | stat.S_IWRITE)
+    tmp_path = rc_path + ".tmp"
+    fd = os.open(tmp_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    try:
+        with os.fdopen(fd, "w") as file_:
+            conf.write(file_)
+        os.replace(tmp_path, rc_path)
+    except BaseException:
+        try:
+            os.remove(tmp_path)
+        except OSError:
+            pass
+        raise
 
 
 def save(name: str, data: dict[str, Any], rc_file: str = "~/.odoorpcrc") -> None:

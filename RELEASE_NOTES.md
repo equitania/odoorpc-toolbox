@@ -1,5 +1,11 @@
 # Release Notes
 
+## Version 0.8.2 (10.06.2026)
+
+### Fixed
+- **Security**: Session RC file (`~/.odoorpcrc`) is now written atomically - the content goes to a temporary file created with mode 0o600 and is moved into place via `os.replace()`. Previously a pre-existing RC file with wider permissions was briefly world-readable between the rewrite and the subsequent `chmod`.
+- **Security**: The cleartext password is no longer retained in memory after `login()` when an API key is active (Odoo 19+ JSON-2 sessions and Odoo 10-18 with explicit `api_key`). All later RPC calls and session saves use the API key, so the password is dropped to limit its in-memory lifetime (heap dumps, `vars()` inspection).
+
 ## Version 0.8.1 (10.06.2026)
 
 ### Fixed

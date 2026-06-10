@@ -446,7 +446,10 @@ class ODOO:
 
         self._env = Environment(self, db, uid, context=context)
         self._login = login
-        self._password = password
+        # With an active API key the password is never used again
+        # (_rpc_credential prefers the key); drop it to limit the
+        # cleartext credential's in-memory lifetime.
+        self._password = None if self._api_key else password
 
         if self._use_json2:
             logger.info(
