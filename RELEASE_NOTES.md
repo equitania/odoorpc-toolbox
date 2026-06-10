@@ -1,5 +1,15 @@
 # Release Notes
 
+## Version 0.7.4 (10.06.2026)
+
+### Security
+- **MEDIUM**: Harden session RC file permissions (`~/.odoorpcrc`). The file stores cleartext passwords but was created with the process umask and only chmod'ed afterwards (TOCTOU race window where other local users could read it); `remove()` never set permissions at all. The file is now created atomically with mode 0o600 via `os.open`, and existing files with loose permissions are tightened on every write. (`odoorpc_toolbox/session.py`)
+- **MEDIUM**: Redact request and response bodies in `ProxyHTTP` DEBUG logs. Raw HTTP bodies (JSON-2 payloads, session authentication data) were logged verbatim, and the `TransportResponse` dataclass repr exposed full response bodies including session tokens. Bodies are now logged as size summaries only (`<N bytes>`, `<status NNN, N bytes>`). Closes the leak path before the JSON-2 API is re-enabled for Odoo 19+. (`odoorpc_toolbox/rpc/jsonrpc.py`)
+
+### Added
+- `get_http_log_data()` and `get_http_log_result()` helpers for safe HTTP log representations
+- 6 new unit tests: RC file permission checks (creation, tightening, remove) and ProxyHTTP log redaction (request body, response body, end-to-end via caplog)
+
 ## Version 0.7.3 (28.05.2026)
 
 ### Security

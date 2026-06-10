@@ -66,6 +66,20 @@ def get(name: str, rc_file: str = "~/.odoorpcrc") -> dict[str, Any]:
     }
 
 
+def _write_rc_file(conf: ConfigParser, rc_path: str) -> None:
+    """Write the RC file with owner-only permissions (0o600).
+
+    The file stores cleartext passwords. Creating it via os.open with an
+    explicit mode avoids the race window between file creation under the
+    process umask and a subsequent chmod; the final chmod also tightens
+    permissions on pre-existing files.
+    """
+    fd = os.open(rc_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w") as file_:
+        conf.write(file_)
+    os.chmod(rc_path, stat.S_IREAD | stat.S_IWRITE)
+
+
 def save(name: str, data: dict[str, Any], rc_file: str = "~/.odoorpcrc") -> None:
     """Save the data session configuration under the given name.
 
@@ -81,10 +95,7 @@ def save(name: str, data: dict[str, Any], rc_file: str = "~/.odoorpcrc") -> None
     for key in data:
         value = data[key]
         conf.set(name, key, str(value))
-    rc_path = os.path.expanduser(rc_file)
-    with open(rc_path, "w") as file_:
-        os.chmod(rc_path, stat.S_IREAD | stat.S_IWRITE)
-        conf.write(file_)
+    _write_rc_file(conf, os.path.expanduser(rc_file))
 
 
 def remove(name: str, rc_file: str = "~/.odoorpcrc") -> bool:
@@ -105,7 +116,5 @@ def remove(name: str, rc_file: str = "~/.odoorpcrc") -> bool:
     if not conf.has_section(name):
         raise ValueError(f"'{name}' session does not exist in {rc_file}")
     conf.remove_section(name)
-    rc_path = os.path.expanduser(rc_file)
-    with open(rc_path, "w") as file_:
-        conf.write(file_)
+    _write_rc_file(conf, os.path.expanduser(rc_file))
     return True

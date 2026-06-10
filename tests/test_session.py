@@ -1,6 +1,8 @@
 """Tests for session persistence module."""
 
 import os
+import stat
+import sys
 import tempfile
 
 import pytest
@@ -93,3 +95,29 @@ class TestSessionRemove:
 
         result = get("test_session", rc_file=temp_rc_file)
         assert result["host"] == "new.host.com"
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX file permissions not applicable on Windows")
+class TestSessionFilePermissions:
+    """The RC file stores cleartext passwords and must be owner-only (0o600)."""
+
+    def test_save_creates_file_with_owner_only_permissions(self, sample_session_data):
+        # Use a fresh path so save() creates the file itself
+        with tempfile.TemporaryDirectory() as tmpdir:
+            rc_file = os.path.join(tmpdir, ".odoorpcrc")
+            save("test_session", sample_session_data, rc_file=rc_file)
+            mode = stat.S_IMODE(os.stat(rc_file).st_mode)
+            assert mode == 0o600
+
+    def test_save_tightens_existing_loose_permissions(self, temp_rc_file, sample_session_data):
+        os.chmod(temp_rc_file, 0o644)
+        save("test_session", sample_session_data, rc_file=temp_rc_file)
+        mode = stat.S_IMODE(os.stat(temp_rc_file).st_mode)
+        assert mode == 0o600
+
+    def test_remove_keeps_owner_only_permissions(self, temp_rc_file, sample_session_data):
+        save("session1", sample_session_data, rc_file=temp_rc_file)
+        save("session2", sample_session_data, rc_file=temp_rc_file)
+        remove("session1", rc_file=temp_rc_file)
+        mode = stat.S_IMODE(os.stat(temp_rc_file).st_mode)
+        assert mode == 0o600

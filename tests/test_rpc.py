@@ -5,10 +5,14 @@ import pytest
 from odoorpc_toolbox.rpc import PROTOCOLS, Connector, ConnectorJSONRPC, ConnectorJSONRPCSSL
 from odoorpc_toolbox.rpc.errors import ConnectorError
 from odoorpc_toolbox.rpc.jsonrpc import (
+    ProxyHTTP,
     URLBuilder,
     encode_data,
+    get_http_log_data,
+    get_http_log_result,
     get_json_log_data,
 )
+from odoorpc_toolbox.rpc.transport import TransportResponse
 
 
 class TestEncodeDecodeData:
@@ -151,6 +155,47 @@ class TestGetJsonLogData:
         result = get_json_log_data(data)
         assert result["params"]["password"] == "**********"
         assert result["params"]["args"][2] == "**********"
+
+
+class TestGetHttpLogData:
+    """Tests for HTTP body log redaction."""
+
+    def test_empty_data(self):
+        assert get_http_log_data(None) == ""
+        assert get_http_log_data("") == ""
+
+    def test_body_content_never_logged(self):
+        body = '{"args": ["db", "admin", "supersecret"]}'
+        result = get_http_log_data(body)
+        assert "supersecret" not in result
+        assert f"<{len(body)} bytes>" in result
+
+    def test_result_hides_response_body(self):
+        response = TransportResponse(status_code=200, body=b'{"session_id": "secret-token"}')
+        result = get_http_log_result(response)
+        assert "secret-token" not in result
+        assert "status 200" in result
+        assert "30 bytes" in result
+
+
+class TestProxyHTTPLogging:
+    """Tests that ProxyHTTP debug logs never contain request/response bodies."""
+
+    def test_debug_log_redacts_bodies(self, caplog):
+        import logging
+        from unittest.mock import MagicMock
+
+        transport = MagicMock()
+        transport.request.return_value = TransportResponse(status_code=200, body=b'{"result": "session-token"}')
+        proxy = ProxyHTTP("localhost", 8069, transport=transport)
+
+        with caplog.at_level(logging.DEBUG, logger="odoorpc_toolbox.rpc.jsonrpc"):
+            proxy("/json/2/res.users/login", data='{"args": ["db", "admin", "supersecret"]}')
+
+        log_text = caplog.text
+        assert "supersecret" not in log_text
+        assert "session-token" not in log_text
+        assert "/json/2/res.users/login" in log_text
 
 
 class TestConnector:

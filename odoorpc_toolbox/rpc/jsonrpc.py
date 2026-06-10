@@ -101,6 +101,29 @@ def get_json_log_data(data: dict) -> dict:
     return log_data if log_data is not None else data
 
 
+def get_http_log_data(data: str | None) -> str:
+    """Return a safe log representation of a raw HTTP request body.
+
+    Raw HTTP bodies (e.g. JSON-2 payloads or session authentication data)
+    may contain credentials in arbitrary shapes that cannot be reliably
+    redacted, so only the body size is logged - never the content.
+    """
+    if not data:
+        return ""
+    return f" (<{len(data)} bytes>)"
+
+
+def get_http_log_result(response) -> str:
+    """Return a safe log representation of an HTTP response.
+
+    Response bodies may contain session tokens or sensitive business data,
+    so only the status code and body size are logged.
+    """
+    status = getattr(response, "status_code", "?")
+    body = getattr(response, "body", b"")
+    return f"<status {status}, {len(body)} bytes>"
+
+
 class Proxy:
     """Base class to implement a proxy to perform requests.
 
@@ -205,9 +228,10 @@ class ProxyHTTP(Proxy):
         if url.startswith("/"):
             url = url[1:]
         full_url = self._get_full_url(url)
+        log_data = get_http_log_data(data)
         logger.debug(
             LOG_HTTP_SEND_MSG,
-            {"url": full_url, "data": f" ({data})" if data else ""},
+            {"url": full_url, "data": log_data},
         )
         data_bytes = encode_data(data) if data else None
         response = self._transport.request(full_url, data=data_bytes, headers=headers, timeout=self._timeout)
@@ -215,8 +239,8 @@ class ProxyHTTP(Proxy):
             LOG_HTTP_RECV_MSG,
             {
                 "url": full_url,
-                "data": f" ({data})" if data else "",
-                "result": response,
+                "data": log_data,
+                "result": get_http_log_result(response),
             },
         )
         return response

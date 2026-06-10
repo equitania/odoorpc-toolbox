@@ -17,7 +17,7 @@ Ein Python-Paket mit Hilfsfunktionen und vollständig internalisierter OdooRPC-I
 **Autor**: Equitania Software GmbH - Pforzheim - Germany
 **Lizenz**: GNU Affero General Public License v3
 **Python**: >= 3.10
-**Version**: 0.7.3
+**Version**: 0.7.4
 
 ### Funktionen
 
@@ -301,7 +301,7 @@ A Python package providing helper functions and a fully internalized OdooRPC imp
 **Author**: Equitania Software GmbH - Pforzheim - Germany
 **License**: GNU Affero General Public License v3
 **Python**: >= 3.10
-**Version**: 0.7.3
+**Version**: 0.7.4
 
 ### Features
 
