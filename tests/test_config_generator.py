@@ -30,6 +30,26 @@ class TestGenerateConfig:
         assert "timeout" in data
         assert "cache" in data
 
+    def test_api_key_commented_hint_by_default(self, tmp_path):
+        path = generate_config(tmp_path / "config.yaml")
+        content = path.read_text(encoding="utf-8")
+        assert "# api_key:" in content
+        with open(path, encoding="utf-8") as f:
+            data = yaml.safe_load(f)
+        assert "api_key" not in data["Server"]
+
+    def test_api_key_rendered_when_given(self, tmp_path):
+        path = generate_config(tmp_path / "config.yaml", api_key="my_secret_key")
+        with open(path, encoding="utf-8") as f:
+            data = yaml.safe_load(f)
+        assert data["Server"]["api_key"] == "my_secret_key"
+
+    def test_api_key_in_minimal_config(self, tmp_path):
+        path = generate_config(tmp_path / "config.yaml", api_key="key123", minimal=True)
+        with open(path, encoding="utf-8") as f:
+            data = yaml.safe_load(f)
+        assert data["Server"]["api_key"] == "key123"
+
     def test_transport_defaults(self, tmp_path):
         path = generate_config(tmp_path / "config.yaml")
         with open(path, encoding="utf-8") as f:

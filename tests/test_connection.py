@@ -115,6 +115,48 @@ class TestOdooConnectionInit:
         mock_instance.login.assert_called_once()
 
     @patch("odoorpc_toolbox.odoo_connection.ODOO")
+    def test_api_key_none_without_config_field(self, mock_odoo, valid_config_yaml):
+        """Without api_key in YAML, login is called with api_key=None."""
+        mock_instance = MagicMock()
+        mock_instance.version = "19.0"
+        mock_instance.config = {}
+        mock_instance.env.context = {}
+        mock_odoo.return_value = mock_instance
+
+        from odoorpc_toolbox import OdooConnection
+
+        conn = OdooConnection(valid_config_yaml)
+        assert conn.api_key is None
+        assert mock_instance.login.call_args[1]["api_key"] is None
+
+    @patch("odoorpc_toolbox.odoo_connection.ODOO")
+    def test_api_key_passed_to_login(self, mock_odoo, tmp_path):
+        """api_key from YAML is forwarded to ODOO.login()."""
+        config = tmp_path / "config.yaml"
+        config.write_text(
+            "Server:\n"
+            "  url: https://test.odoo.com\n"
+            "  port: 443\n"
+            "  user: admin\n"
+            "  password: admin123\n"
+            "  api_key: my_api_key\n"
+            "  database: testdb\n"
+            "  protocol: jsonrpc+ssl\n",
+            encoding="utf-8",
+        )
+        mock_instance = MagicMock()
+        mock_instance.version = "19.0"
+        mock_instance.config = {}
+        mock_instance.env.context = {}
+        mock_odoo.return_value = mock_instance
+
+        from odoorpc_toolbox import OdooConnection
+
+        conn = OdooConnection(str(config))
+        assert conn.api_key == "my_api_key"
+        assert mock_instance.login.call_args[1]["api_key"] == "my_api_key"
+
+    @patch("odoorpc_toolbox.odoo_connection.ODOO")
     def test_connection_url_error(self, mock_odoo, valid_config_yaml):
         """Test that URL errors raise OdooConnectionError."""
         from odoorpc_toolbox import OdooConnection, OdooConnectionError

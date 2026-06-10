@@ -31,6 +31,7 @@ Server:
   port: {port}
   user: {user}
   password: {password}
+{api_key_line}
   database: {database}
   protocol: {protocol}
 
@@ -74,9 +75,13 @@ Server:
   port: {port}
   user: {user}
   password: {password}
+{api_key_line}
   database: {database}
   protocol: {protocol}
 """
+
+# Commented hint rendered when no API key is given
+_API_KEY_HINT = "  # api_key: YOUR_API_KEY   # Odoo 19+ Bearer auth, takes precedence over password"
 
 
 def generate_config(
@@ -86,6 +91,7 @@ def generate_config(
     port: int = 443,
     user: str = "admin",
     password: str = "admin",
+    api_key: str | None = None,
     database: str = "mydb",
     protocol: str = "jsonrpc",
     minimal: bool = False,
@@ -99,6 +105,8 @@ def generate_config(
         port: Odoo server port.
         user: Username for authentication.
         password: Password for authentication.
+        api_key: Odoo API key for Bearer auth (Odoo 19+). When omitted, a
+            commented hint line is rendered instead.
         database: Database name.
         protocol: RPC protocol (jsonrpc or jsonrpc+ssl).
         minimal: If True, generate only the Server section.
@@ -121,6 +129,7 @@ def generate_config(
         port=port,
         user=user,
         password=password,
+        api_key_line=f"  api_key: {api_key}" if api_key else _API_KEY_HINT,
         database=database,
         protocol=protocol,
     )
@@ -166,6 +175,11 @@ def main(argv: list[str] | None = None) -> int:
         help="Username (default: admin)",
     )
     parser.add_argument(
+        "--api-key",
+        default=None,
+        help="Odoo API key for Bearer auth on Odoo 19+ (default: none, commented hint)",
+    )
+    parser.add_argument(
         "--database",
         default="mydb",
         help="Database name (default: mydb)",
@@ -196,6 +210,7 @@ def main(argv: list[str] | None = None) -> int:
             port=args.port,
             user=args.user,
             password="admin",
+            api_key=args.api_key,
             database=args.database,
             protocol=args.protocol,
             minimal=args.minimal,

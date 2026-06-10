@@ -7,7 +7,8 @@ Server:
   url: https://odoo.example.com
   port: 443
   user: admin
-  password: secret
+  password: CHANGE_ME
+  # api_key: YOUR_API_KEY     # Odoo 19+ API key (Bearer auth), takes precedence over password
   database: production_db
   protocol: jsonrpc+ssl
 

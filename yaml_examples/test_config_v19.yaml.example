@@ -1,0 +1,20 @@
+# Odoo 19 test instance configuration (JSON-2 API / Bearer auth)
+# Copy this file to test_config_v19.yaml and adjust values:
+#   cp yaml_examples/test_config_v19.yaml.example yaml_examples/test_config_v19.yaml
+#
+# Required: Odoo 19 Community with demo data enabled.
+# Required modules: base, product, sale, contacts
+#
+# Generate an API key in Odoo:
+#   Settings -> Users & Companies -> Users -> your user -> API Keys -> New
+#
+# Run the Odoo 19 integration tests:
+#   ODOO19_TEST_CONFIG=yaml_examples/test_config_v19.yaml pytest tests/integration/test_int_json2.py -v
+Server:
+  url: http://localhost
+  port: 8069
+  user: admin
+  password: admin            # Used as API key on Odoo 19+ when api_key is unset
+  api_key: YOUR_API_KEY      # Odoo 19+ API key (Bearer auth), takes precedence over password
+  database: v19_test
+  protocol: jsonrpc

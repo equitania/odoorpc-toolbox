@@ -59,6 +59,8 @@ class OdooConnection:
         odoo_port: Server port number.
         user: Username for authentication.
         pw: Password for authentication.
+        api_key: Odoo API key for Bearer auth (Odoo 19+). Takes precedence
+            over the password for the JSON-2 API when set.
         db: Database name.
         protocol: Connection protocol (jsonrpc or jsonrpc+ssl).
         odoo_version: Odoo server version.
@@ -87,6 +89,7 @@ class OdooConnection:
             self.odoo_port = connection_data.get("port", 8069)
             self.user = connection_data.get("user", "admin")
             self.pw = connection_data.get("password", "dbpassword")
+            self.api_key = connection_data.get("api_key") or None
             self.db = connection_data.get("database", "dbname")
             self.protocol = connection_data.get("protocol", "jsonrpc")
             self.odoo_version = 0
@@ -183,7 +186,7 @@ class OdooConnection:
         try:
             odoo_con = ODOO(odoo_address, port=odoo_port, protocol=protocol, timeout=timeout, transport=transport)
             self.odoo_version = int(odoo_con.version.split(".")[0])
-            odoo_con.login(self.db, self.user, self.pw)
+            odoo_con.login(self.db, self.user, self.pw, api_key=self.api_key)
 
             odoo_con.config["auto_commit"] = True  # No need for manual commits
             odoo_con.env.context["active_test"] = False  # Show inactive articles
