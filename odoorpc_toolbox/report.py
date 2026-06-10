@@ -85,7 +85,21 @@ class Report:
             IrReport = self._odoo.env["ir.actions.report"]
             report = IrReport.browse(report_id)
             if v(self._odoo.version)[0] >= 14:
-                raise NotImplementedError("Report download requires CSRF token for Odoo >= 14")
+                raise NotImplementedError(
+                    f"report.download() is not supported on Odoo {self._odoo.version}. "
+                    "The /report/download endpoint requires a browser-session CSRF "
+                    "token, and the external API (including the JSON-2 API on Odoo "
+                    "19+) exposes no report rendering path: the ir.actions.report "
+                    "render methods are private (underscore-prefixed) and not "
+                    "RPC-callable.\n"
+                    "Workarounds:\n"
+                    "  1. Render server-side and fetch the result, e.g. store the "
+                    "PDF in an ir.attachment via a custom server action or module, "
+                    "then read it over RPC.\n"
+                    "  2. Use a headless browser (Playwright/Selenium) with a real "
+                    "web session to download from /report/download.\n"
+                    "See: https://www.odoo.com/documentation/19.0/developer/reference/external_api.html"
+                )
             else:
                 response = report.with_context(context).render(ids, data=datas)
             content = response[0]
@@ -96,7 +110,7 @@ class Report:
             args_to_send = [
                 self._odoo.env.db,
                 self._odoo.env.uid,
-                self._odoo._password,
+                self._odoo._rpc_credential,
                 name,
                 ids,
                 datas,
