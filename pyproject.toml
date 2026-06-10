@@ -93,4 +93,5 @@ markers = [
     "integration: Tests requiring a live Odoo instance",
     "benchmark: Performance benchmark tests",
     "slow: Slow tests (bulk operations, large datasets)",
+    "odoo19: Tests requiring a live Odoo 19+ instance (JSON-2 API)",
 ]

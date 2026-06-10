@@ -84,6 +84,8 @@ class TestPartnerOperations:
 
     def test_get_res_partner_title_id(self, connection):
         """Look up a partner title (e.g. Mister)."""
+        if int(connection.odoo.version.split(".")[0]) >= 19:
+            pytest.skip("res.partner.title was removed in Odoo 19")
         # Demo data should have titles like "Mister", "Miss", "Doctor"
         title_id = connection.get_res_partner_title_id("Mister")
         if title_id is None:

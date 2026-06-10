@@ -167,3 +167,32 @@ def write_fields_individually(odoo: ODOO, model: str, record_ids: list[int], fie
         odoo.execute_kw(model, "write", [record_ids, {field_name: value}])
         count += 1
     return count
+
+
+def legacy_execute_kw(odoo: ODOO, model: str, method: str, args: list, kwargs: dict | None = None) -> Any:
+    """Legacy /jsonrpc execute_kw path, bypassing the JSON-2 routing.
+
+    Used as the baseline for JSON-2 vs legacy comparisons on Odoo 19+,
+    where ODOO.execute_kw() would otherwise route through /json/2/.
+    Goes through ODOO.json() (the counting() choke-point) with the classic
+    [db, uid, credential, model, method, args, kwargs] argument list.
+
+    Args:
+        odoo: Connected ODOO instance.
+        model: Odoo model name.
+        method: Method name.
+        args: Positional arguments list.
+        kwargs: Keyword arguments dictionary.
+
+    Returns:
+        The RPC result.
+    """
+    data = odoo.json(
+        "/jsonrpc",
+        {
+            "service": "object",
+            "method": "execute_kw",
+            "args": [odoo.env.db, odoo.env.uid, odoo._rpc_credential, model, method, args, kwargs or {}],
+        },
+    )
+    return data.get("result")

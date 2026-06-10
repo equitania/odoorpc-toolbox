@@ -116,3 +116,49 @@ def fresh_cache(connection):
     """Clear the lookup cache before each test."""
     connection.clear_cache()
     return connection
+
+
+# ---- Odoo 19+ fixtures (JSON-2 API / Bearer auth) ----
+
+
+@pytest.fixture(scope="session")
+def odoo19_config_path():
+    """Return the Odoo 19 test config path or skip.
+
+    Set the ODOO19_TEST_CONFIG environment variable to a YAML config
+    pointing at a live Odoo 19+ instance (see
+    yaml_examples/test_config_v19.yaml.example).
+    """
+    config_path = os.environ.get("ODOO19_TEST_CONFIG")
+    if not config_path:
+        pytest.skip("ODOO19_TEST_CONFIG not set - skipping Odoo 19 integration tests")
+    if not os.path.exists(config_path):
+        pytest.skip(f"Odoo 19 test config not found at {config_path}")
+    return config_path
+
+
+@pytest.fixture(scope="session")
+def odoo19_connection(odoo19_config_path):
+    """Session-scoped EqOdooConnection against a live Odoo 19+ instance."""
+    try:
+        conn = EqOdooConnection(odoo19_config_path)
+    except Exception as e:
+        pytest.skip(f"Cannot connect to Odoo 19: {e}")
+    major = int(conn.odoo.version.split(".")[0])
+    if major < 19:
+        pytest.skip(f"ODOO19_TEST_CONFIG points to Odoo {conn.odoo.version}, need >= 19")
+    return conn
+
+
+@pytest.fixture(scope="session")
+def odoo19(odoo19_connection):
+    """Raw ODOO instance for Odoo 19+ tests."""
+    return odoo19_connection.odoo
+
+
+@pytest.fixture
+def odoo19_data_manager(odoo19):
+    """Per-test TestDataManager for the Odoo 19 instance."""
+    manager = TestDataManager(odoo19)
+    yield manager
+    manager.cleanup()

@@ -140,3 +140,4 @@ benchmark_results/
 # Integration test config (contains credentials)
 yaml_examples/test_config.yaml
 
+yaml_examples/test_config_v19.yaml

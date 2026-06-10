@@ -117,6 +117,64 @@ def counting(odoo: ODOO, scenario: str = "") -> Generator[RPCMetrics, None, None
 
 
 @contextmanager
+def counting_json2(odoo: ODOO, scenario: str = "") -> Generator[RPCMetrics, None, None]:
+    """Context manager that counts legacy JSON-RPC AND JSON-2 calls.
+
+    JSON-2 calls (Odoo 19+) go through ``ODOO._json2_call`` -> ``proxy_http``
+    and bypass ``ODOO.json()`` entirely, so the plain ``counting()`` manager
+    cannot see them. This manager patches both choke-points:
+
+    - ``ODOO.json()`` for legacy /jsonrpc calls (key: ``jsonrpc/<service>/...``)
+    - ``ODOO._json2_call`` for JSON-2 calls (key: ``json2/<model>/<method>``)
+
+    Args:
+        odoo: The ODOO instance to monitor.
+        scenario: Name for this benchmark scenario.
+
+    Yields:
+        RPCMetrics: Metrics object that gets populated during the block.
+    """
+    metrics = RPCMetrics(scenario=scenario)
+    lock = threading.Lock()
+    original_json = odoo.json
+    original_json2 = odoo._json2_call
+
+    def _record(method_key: str, call_ms: float) -> None:
+        with lock:
+            metrics.rpc_calls += 1
+            metrics.call_times_ms.append(call_ms)
+            metrics.rpc_calls_by_method[method_key] = metrics.rpc_calls_by_method.get(method_key, 0) + 1
+
+    def patched_json(url: str, params: dict) -> dict:
+        call_start = time.perf_counter()
+        result = original_json(url, params)
+        call_ms = (time.perf_counter() - call_start) * 1000
+        method_key = params.get("method", url)
+        service = params.get("service", "")
+        if service:
+            method_key = f"jsonrpc/{service}/{method_key}"
+        _record(method_key, call_ms)
+        return result
+
+    def patched_json2(model: str, method: str, kwargs: dict | None = None, **opts):
+        call_start = time.perf_counter()
+        result = original_json2(model, method, kwargs, **opts)
+        call_ms = (time.perf_counter() - call_start) * 1000
+        _record(f"json2/{model}/{method}", call_ms)
+        return result
+
+    odoo.json = patched_json
+    odoo._json2_call = patched_json2
+    start_time = time.perf_counter()
+    try:
+        yield metrics
+    finally:
+        metrics.total_time_ms = (time.perf_counter() - start_time) * 1000
+        odoo.json = original_json
+        odoo._json2_call = original_json2
+
+
+@contextmanager
 def counting_with_cache(connection: EqOdooConnection, scenario: str = "") -> Generator[RPCMetrics, None, None]:
     """Context manager that counts both RPC calls and cache hits/misses.
 

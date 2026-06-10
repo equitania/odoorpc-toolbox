@@ -29,7 +29,11 @@ class TestExecuteMethodOperations:
         assert "email" in result
 
     def test_execute_method_on_records(self, connection, data_manager):
-        """Call a method on specific records."""
+        """Call a method on specific records.
+
+        Uses read() since it exists on all Odoo versions (name_get was
+        removed in Odoo 19).
+        """
         partner_id = data_manager.create(
             "res.partner",
             {"name": "IntTest Execute Method Partner", "is_company": True},
@@ -37,12 +41,14 @@ class TestExecuteMethodOperations:
 
         result = connection.execute_method(
             "res.partner",
-            "name_get",
+            "read",
             record_ids=[partner_id],
+            kwargs={"fields": ["name"]},
         )
         assert isinstance(result, list)
         assert len(result) == 1
-        assert result[0][0] == partner_id
+        assert result[0]["id"] == partner_id
+        assert result[0]["name"] == "IntTest Execute Method Partner"
 
     def test_execute_method_private_blocked(self, connection):
         """Private methods (starting with _) should be blocked."""
