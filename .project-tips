@@ -1,4 +1,4 @@
-# odoorpc-toolbox | python/uv v0.7.3
+# odoorpc-toolbox | python/uv v0.8.1
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ▸ Setup:     uv venv && venv+ && uv pip install -e ".[dev,benchmark]"
 ▸ Test:      pytest tests/ -m "not integration"

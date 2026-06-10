@@ -249,8 +249,12 @@ Server:
 ```
 
 - **API-Key**: In Odoo unter Einstellungen → Benutzer → eigener Benutzer →
-  API-Schlüssel erzeugen. Das `api_key`-Feld hat Vorrang vor `password`;
+  API-Schlüssel erzeugen. Das `api_key`-Feld hat Vorrang vor `password`
+  (auf allen Versionen — ab v14 als Passwort-Ersatz im Legacy-RPC);
   ein API-Key im `password`-Feld funktioniert weiterhin (Abwärtskompatibilität).
+- **Passwort-Login**: Echte Passwörter sind keine gültigen Bearer-Tokens —
+  der Login fällt dann automatisch auf das Legacy-`/jsonrpc` zurück
+  (funktioniert bis Odoo 22) und loggt eine Warnung mit API-Key-Empfehlung.
 - **API-only Benutzer**: Bot-Accounts ohne Passwort werden unterstützt —
   der Login läuft komplett über den API-Key (`res.users/context_get`).
 - **Named Parameters**: Bekannte ORM-Methoden (search, read, write, …) werden
@@ -563,8 +567,12 @@ Server:
 ```
 
 - **API key**: Generate in Odoo under Settings → Users → your user →
-  API Keys. The `api_key` field takes precedence over `password`; an API
+  API Keys. The `api_key` field takes precedence over `password` (on all
+  versions - usable as password substitute in legacy RPC since v14); an API
   key placed in the `password` field keeps working (backward compatibility).
+- **Password login**: Real passwords are not valid Bearer tokens - login
+  automatically falls back to the legacy `/jsonrpc` endpoint (works until
+  Odoo 22) and logs a warning recommending an API key.
 - **API-only users**: Bot accounts without a password are supported - login
   runs entirely on the API key (`res.users/context_get` bootstrap).
 - **Named parameters**: Known ORM methods (search, read, write, ...) are
